@@ -1,4 +1,4 @@
-import { TransitionObserver } from "./transition-observer.model";
+import { TypedStateMachine } from "../typed-state-machine";
 
 /**
  * Represent a transition function from state(s) to state(s)
@@ -21,13 +21,18 @@ export class Transition<T>{
     name: string;
 
     /**
-     * Subscribe to observe when this transition occurs
+     * Called before the transition occurs
      */
-    observer: TransitionObserver<T>;
+    onBeforeTransition?: (arg: TypedStateMachine<T>) => void;
+
+    /**
+     * Called after the transition occurs
+     */
+    onAfterTransition?: (arg: TypedStateMachine<T>) => void;
 
     /**
      * Create a new transition function
-     * @param config The transition config
+     * @param config The transition configuration
      */
     constructor(config?: Partial<Transition<T>>) {
         if (config)

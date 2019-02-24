@@ -35,8 +35,6 @@ const transitions = [
     }),
 ];
 
-
-
 describe("Transition initialization", () => {
 
     it("Should construct properly the toString", () => {
