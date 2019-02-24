@@ -4,13 +4,13 @@
   "description": "A typed state machine inspired by jakesgordon/javascript-state-machine",
   "main": "dist/index.js",
   "scripts": {
-    "test": "npx jest --verbose",
+    "test": "jest --verbose",
     "test:watch": "jest --verbose --watch",
     "test:cov": "jest --verbose --coverage",
     "test:coveralls": "jest --coverageReporters=text-lcov | coveralls",
     "start": "nodemon",
     "build": "tsc",
-    "clean": "npx rimraf dist && rimraf coverage"
+    "clean": "npx rimraf dist && npx rimraf coverage"
   },
   "keywords": [
     "typescript",
