@@ -1,0 +1,50 @@
+{
+  "name": "typed-state-machine",
+  "version": "1.0.0",
+  "description": "A typed state machine inspired by finite-state-machine",
+  "main": "dist/index.js",
+  "scripts": {
+    "test": "jest --verbose",
+    "test:watch": "jest --verbose --watch",
+    "test:cov": "jest --verbose --coverage",
+    "start": "nodemon",
+    "build": "tsc",
+    "clean": "npx rimraf dist && rimraf coverage"
+  },
+  "keywords": [
+    "typescript",
+    "ts",
+    "state",
+    "machine",
+    "enum",
+    "dfa",
+    "nfa"
+  ],
+  "author": "Giacomo De Liberali<deliberali.giacomo@gmail.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/jest": "^24.0.6",
+    "jest": "^24.1.0",
+    "nodemon": "^1.18.10",
+    "ts-jest": "^24.0.0",
+    "ts-node": "^8.0.2",
+    "typescript": "^3.3.3333"
+  },
+  "dependencies": {
+    "reflect-metadata": "^0.1.13",
+    "rxjs": "^6.4.0"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "rootDir": "src",
+    "testRegex": ".spec.ts$",
+    "transform": {
+      "^.+\\.ts$": "ts-jest"
+    },
+    "coverageDirectory": "../coverage"
+  }
+}
