@@ -1,7 +1,7 @@
 {
   "name": "typed-state-machine",
   "version": "1.0.0",
-  "description": "A typed state machine inspired by finite-state-machine",
+  "description": "A typed state machine inspired by jakesgordon/javascript-state-machine",
   "main": "dist/index.js",
   "scripts": {
     "test": "jest --verbose",
@@ -21,7 +21,15 @@
     "dfa",
     "nfa"
   ],
-  "author": "Giacomo De Liberali<deliberali.giacomo@gmail.com>",
+  "author": {
+    "name": "Giacomo De Liberali",
+    "url": "giacomodeliberali.com",
+    "email": "deliberali.giacomo@gmail.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/giacomodeliberali/typed-state-machine.git"
+  },
   "license": "MIT",
   "devDependencies": {
     "@types/jest": "^24.0.6",
