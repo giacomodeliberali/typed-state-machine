@@ -1,3 +1,10 @@
+<p align="center">
+    <a href="https://coveralls.io/github/giacomodeliberali/typed-state-machine" alt="Coverage status">
+        <img src="https://coveralls.io/repos/github/giacomodeliberali/typed-state-machine/badge.svg?branch=master" /></a>
+    <a href="https://travis-ci.org/giacomodeliberali/typed-state-machine" alt="Build Status">
+        <img src="https://travis-ci.org/giacomodeliberali/typed-state-machine.svg?branch=master" /></a>
+</p>
+
 # Typed State Machine
 
 A library to describe finite state machine (aka DFA). 
