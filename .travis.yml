@@ -1,7 +1,8 @@
 language: nodejs
 
 before_script:
-  - npm i -g typescript jest @types/jest coveralls
+  - npm i -g typescript jest coveralls
+  - npm install
   - npm run build
 
 script:
