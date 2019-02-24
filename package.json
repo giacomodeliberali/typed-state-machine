@@ -4,7 +4,7 @@
   "description": "A typed state machine inspired by jakesgordon/javascript-state-machine",
   "main": "dist/index.js",
   "scripts": {
-    "test": "jest --verbose",
+    "test": "npx jest --verbose",
     "test:watch": "jest --verbose --watch",
     "test:cov": "jest --verbose --coverage",
     "test:coveralls": "jest --coverageReporters=text-lcov | coveralls",
