@@ -1,0 +1,11 @@
+language: nodejs
+
+before_script:
+  - npm i -g typescript jest coveralls
+  - npm run build
+
+script:
+  - npm run test
+
+after_success:
+  - npm run test:coveralls

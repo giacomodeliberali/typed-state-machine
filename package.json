@@ -7,6 +7,7 @@
     "test": "jest --verbose",
     "test:watch": "jest --verbose --watch",
     "test:cov": "jest --verbose --coverage",
+    "test:coveralls": "jest --coverageReporters=text-lcov | coveralls",
     "start": "nodemon",
     "build": "tsc",
     "clean": "npx rimraf dist && rimraf coverage"
@@ -24,6 +25,7 @@
   "license": "MIT",
   "devDependencies": {
     "@types/jest": "^24.0.6",
+    "coveralls": "^3.0.3",
     "jest": "^24.1.0",
     "nodemon": "^1.18.10",
     "ts-jest": "^24.0.0",
