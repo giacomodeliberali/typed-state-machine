@@ -1,36 +1,35 @@
-import { TypedStateMachine } from "../typed-state-machine";
 import { Transition } from "../models/transition.model";
-import { MyEnum } from "./my-enum.enum";
+import { LiteralEnum } from "./my-enum.enum";
 
 const transitions = [
     new Transition({
-        from: MyEnum.A,
-        to: MyEnum.B,
+        from: LiteralEnum.A,
+        to: LiteralEnum.B,
         name: "First"
     }),
     new Transition({
-        from: MyEnum.B,
+        from: LiteralEnum.B,
         to: [
-            MyEnum.C,
-            MyEnum.D
+            LiteralEnum.C,
+            LiteralEnum.D
         ],
         name: "Second"
     }),
     new Transition({
         from: [
-            MyEnum.C,
-            MyEnum.D
+            LiteralEnum.C,
+            LiteralEnum.D
         ],
-        to: MyEnum.E,
+        to: LiteralEnum.E,
         name: "Third"
     }),
     new Transition({
         from: [
-            MyEnum.C,
-            MyEnum.D
+            LiteralEnum.C,
+            LiteralEnum.D
         ],
         to: [
-            MyEnum.F
+            LiteralEnum.F
         ]
     }),
 ];

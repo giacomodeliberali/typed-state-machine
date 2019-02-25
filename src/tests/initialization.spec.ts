@@ -1,42 +1,42 @@
 import { TypedStateMachine } from "../typed-state-machine";
 import { Transition } from "../models/transition.model";
-import { MyEnum } from "./my-enum.enum";
+import { LiteralEnum } from "./my-enum.enum";
 import { StateHookType } from "../models/state-lifecycle-hook-type.enum";
 import { State } from "../models/state.model";
 
 /**
  * The typed machine under test
  */
-let tsm: TypedStateMachine<MyEnum>;
+let tsm: TypedStateMachine<LiteralEnum>;
 
 /**
  * The list of transition used to build the ts machine
  */
 const transitions = [
     new Transition({
-        from: MyEnum.A,
-        to: MyEnum.B,
+        from: LiteralEnum.A,
+        to: LiteralEnum.B,
         name: "A->B"
     }),
     new Transition({
-        from: MyEnum.A,
-        to: MyEnum.C,
+        from: LiteralEnum.A,
+        to: LiteralEnum.C,
         name: "A->C"
     }),
     new Transition({
-        from: MyEnum.A,
+        from: LiteralEnum.A,
         to: [
-            MyEnum.D,
-            MyEnum.E
+            LiteralEnum.D,
+            LiteralEnum.E
         ],
         name: "A->[D,E]"
     }),
     new Transition({
         from: [
-            MyEnum.F,
-            MyEnum.D
+            LiteralEnum.F,
+            LiteralEnum.D
         ],
-        to: MyEnum.A,
+        to: LiteralEnum.A,
         name: "loop"
     })
 ];
@@ -57,7 +57,7 @@ const onAfterState_A_Enter = jest.fn();
 // initialize a new TypedStateMachine
 beforeEach(async () => {
     tsm = await new TypedStateMachine({
-        initialState: MyEnum.A,
+        initialState: LiteralEnum.A,
         transitions: transitions,
 
         // general hooks
@@ -70,7 +70,7 @@ beforeEach(async () => {
         // state hooks
         hooks: [
             {
-                state: MyEnum.A,
+                state: LiteralEnum.A,
                 handlers: [
                     {
                         hookType: StateHookType.OnBeforeEnter,
@@ -94,8 +94,8 @@ describe("TypedStateMachine initialization", () => {
         expect(transFun).not.toBe(transitions);
 
         transFun.push(new Transition({
-            from: MyEnum.A,
-            to: MyEnum.F,
+            from: LiteralEnum.A,
+            to: LiteralEnum.F,
         }));
 
         expect(tsm.getAllTransitions().length).toBe(4);
@@ -109,12 +109,12 @@ describe("TypedStateMachine initialization", () => {
         const allStates = tsm.getAllStates();
 
         expect(allStates.map(s => s.state)).toEqual([
-            MyEnum.A,
-            MyEnum.B,
-            MyEnum.C,
-            MyEnum.D,
-            MyEnum.E,
-            MyEnum.F
+            LiteralEnum.A,
+            LiteralEnum.B,
+            LiteralEnum.C,
+            LiteralEnum.D,
+            LiteralEnum.E,
+            LiteralEnum.F
         ]);
     });
 
@@ -131,7 +131,7 @@ describe("TypedStateMachine initialization", () => {
     });
 
     it("Should return the initial state", () => {
-        expect(tsm.getState()).toBe(MyEnum.A);
+        expect(tsm.getState()).toBe(LiteralEnum.A);
     });
 });
 
@@ -166,7 +166,7 @@ describe("TypedStateMachine initialization hooks", () => {
 describe("TypedStateMachine initial states", () => {
 
     it("Should have A as initial state", () => {
-        expect(tsm.getState()).toEqual(MyEnum.A);
+        expect(tsm.getState()).toEqual(LiteralEnum.A);
     });
 
     it("Should have return correct states", () => {
@@ -176,53 +176,53 @@ describe("TypedStateMachine initial states", () => {
         expect(states[0]).toEqual({
             current: true,
             reachable: false,
-            state: MyEnum.A
-        } as State<MyEnum>);
+            state: LiteralEnum.A
+        } as State<LiteralEnum>);
 
         // B
         expect(states[1]).toEqual({
             current: false,
             reachable: true,
-            state: MyEnum.B
-        } as State<MyEnum>);
+            state: LiteralEnum.B
+        } as State<LiteralEnum>);
 
         // C
         expect(states[2]).toEqual({
             current: false,
             reachable: true,
-            state: MyEnum.C
-        } as State<MyEnum>);
+            state: LiteralEnum.C
+        } as State<LiteralEnum>);
 
         // D
         expect(states[3]).toEqual({
             current: false,
             reachable: true,
-            state: MyEnum.D
-        } as State<MyEnum>);
+            state: LiteralEnum.D
+        } as State<LiteralEnum>);
 
         // E
         expect(states[4]).toEqual({
             current: false,
             reachable: true,
-            state: MyEnum.E
-        } as State<MyEnum>);
+            state: LiteralEnum.E
+        } as State<LiteralEnum>);
 
         // F
         expect(states[5]).toEqual({
             current: false,
             reachable: false,
-            state: MyEnum.F
-        } as State<MyEnum>);
+            state: LiteralEnum.F
+        } as State<LiteralEnum>);
     });
 
     it("Should have return correct next states", () => {
         const nextStates = tsm.getNextStates();
 
         expect(nextStates).toEqual([
-            MyEnum.B,
-            MyEnum.C,
-            MyEnum.D,
-            MyEnum.E
+            LiteralEnum.B,
+            LiteralEnum.C,
+            LiteralEnum.D,
+            LiteralEnum.E
         ]);
     });
 

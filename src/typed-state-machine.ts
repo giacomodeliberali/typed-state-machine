@@ -20,6 +20,18 @@ export class TypedStateMachine<T> {
     private config: TypedStateMachineConfig<T>;
 
     /**
+     * Set to true to allow the machine to perform a transition from a state to itself, false otherwise.
+     * All lifecycle hooks will be triggered during the self transition. 
+     * 
+     * @default false
+     * @param value True if the self loop is allowed, false otherwise
+     */
+    public setCanSelfLoop(value: boolean) {
+        this.config.canSelfLoop = value || false;
+        return this;
+    }
+
+    /**
      * Create a new TypedStateMachine
      * @param config The configuration such as transition functions and initial state
      */
@@ -194,6 +206,15 @@ export class TypedStateMachine<T> {
         return okFlag && okFlagPromise.reduce((acc, value) => { return value && acc }, true);
     }
 
+    private isArrayOrValueEqual(value: T, valueArray: T | Array<T>) {
+
+        if (Array.isArray(valueArray)) {
+            return !!valueArray.find(v => v == value);
+        }
+
+        return value == valueArray;
+    }
+
     /**
      * Perform a transition from the current state to the given new state, if possible.
      * If the transition is not possible return false, true if the transition succeeded.
@@ -214,7 +235,34 @@ export class TypedStateMachine<T> {
      * @param newState The destination state
      */
     public async transit(newState: T): Promise<boolean> {
-        const transition = this.getTransition(newState);
+        let transition = this.getTransition(newState);
+
+        if (!transition && (newState != null && newState != undefined) && this.config.canSelfLoop) {
+            // self transition
+            transition = new Transition({
+                from: newState,
+                to: newState,
+                onBeforeTransition: this.config.transitions.map(t => {
+                    if (this.isArrayOrValueEqual(newState, t.from)) {
+                        // newState appear in from
+                        return t.onBeforeTransition;
+                    } else {
+                        // newState appear in from
+                        return null;
+                    }
+                }).filter(v => !!v)[0],
+                onAfterTransition: this.config.transitions.map(t => {
+                    if (this.isArrayOrValueEqual(newState, t.to)) {
+                        // newState appear in from
+                        return t.onAfterTransition;
+                    } else {
+                        // newState appear in from
+                        return null;
+                    }
+                }).filter(v => !!v)[0]
+            })
+        }
+
         if (transition) {
 
             // on before transition
@@ -231,35 +279,33 @@ export class TypedStateMachine<T> {
             if (transition.onBeforeTransition)
                 transition.onBeforeTransition(this);
 
-            const executeHandles = (hooks: Array<HookFunction<T>>, hookType: StateHookType) => {
-                hooks.forEach(hook => {
-                    hook.handlers.forEach(handlerConfig => {
-                        if (handlerConfig.hookType == hookType)
-                            handlerConfig.handler(this);
-                    });
-                });
-            };
-
-            const fromHooks: Array<HookFunction<T>> = this.getHooksOfState(transition.from);
-            const toHooks: Array<HookFunction<T>> = this.getHooksOfState(transition.to);
-
-            executeHandles(fromHooks, StateHookType.OnBeforeLeave);
+            const currentState = this.getState();
+            let canProceed = await this.triggerHooks(currentState, StateHookType.OnBeforeLeave);
+            if (!canProceed)
+                return false;
 
             if (this.config.onStateLeave)
                 this.config.onStateLeave(this, this.state);
 
-            this.state = null;
+            this.state = undefined;
 
-            executeHandles(fromHooks, StateHookType.OnAfterLeave);
+            canProceed = await this.triggerHooks(currentState, StateHookType.OnAfterLeave);
+            if (!canProceed)
+                return false;
 
-            executeHandles(toHooks, StateHookType.OnBeforeEnter);
+            canProceed = await this.triggerHooks(newState, StateHookType.OnBeforeEnter);
+            if (!canProceed)
+                return false;
 
+            // update the state
             this.state = newState;
 
             if (this.config.onStateEnter)
                 this.config.onStateEnter(this, this.state);
 
-            executeHandles(toHooks, StateHookType.OnAfterEnter);
+            canProceed = await this.triggerHooks(this.state, StateHookType.OnAfterEnter);
+            if (!canProceed)
+                return false;
 
             if (transition.onAfterTransition)
                 transition.onAfterTransition(this);
@@ -267,6 +313,8 @@ export class TypedStateMachine<T> {
 
             if (this.config.onAfterEveryTransition)
                 this.config.onAfterEveryTransition(this);
+
+            return true;
 
         } else {
             // on invalid transition

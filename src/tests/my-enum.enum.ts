@@ -1,4 +1,4 @@
-export enum MyEnum {
+export enum LiteralEnum {
     A = "A",
     B = "B",
     C = "C",
@@ -6,3 +6,5 @@ export enum MyEnum {
     E = "E",
     F = "F"
 }
+
+
