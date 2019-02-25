@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "test": "jest --verbose",
-    "test:watch": "jest --verbose --watch",
+    "test:watch": "jest --verbose --coverage --watch",
     "test:cov": "jest --verbose --coverage",
     "test:coveralls": "jest --coverage --coverageReporters=text-lcov | coveralls",
     "start": "nodemon",

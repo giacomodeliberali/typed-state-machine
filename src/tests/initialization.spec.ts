@@ -3,6 +3,7 @@ import { Transition } from "../models/transition.model";
 import { LiteralEnum } from "./my-enum.enum";
 import { StateHookType } from "../models/state-lifecycle-hook-type.enum";
 import { State } from "../models/state.model";
+import { ThreadStateType } from "./thread-state-type.enum";
 
 /**
  * The typed machine under test
@@ -224,6 +225,90 @@ describe("TypedStateMachine initial states", () => {
             LiteralEnum.D,
             LiteralEnum.E
         ]);
+    });
+
+    it("Should have empty hooks if none was given", () => {
+
+        tsm = new TypedStateMachine({
+            initialState: LiteralEnum.A,
+            transitions: []
+        });
+
+        expect(tsm).toBeDefined();
+    });
+
+    it("Should fallback to false canSelfLoop", () => {
+
+        expect(tsm.config.canSelfLoop).toEqual(false);
+
+        tsm.updateConfig({
+            canSelfLoop: true
+        });
+        
+        expect(tsm.config.canSelfLoop).toEqual(true);
+    });
+
+    it("Should support multiple from and multiple to", async () => {
+
+        tsm.updateConfig({
+            transitions: [
+                new Transition({
+                    from: [
+                        LiteralEnum.A,
+                        LiteralEnum.B
+                    ],
+                    to: [
+                        LiteralEnum.B,
+                        LiteralEnum.F,
+                        LiteralEnum.E
+                    ]
+                })
+            ]
+        });
+        
+        expect(tsm.getState()).toEqual(LiteralEnum.A);
+
+        await tsm.transit(LiteralEnum.B);
+
+        expect(tsm.getState()).toEqual(LiteralEnum.B);
+
+        await tsm.transit(LiteralEnum.E);
+
+        expect(tsm.getState()).toEqual(LiteralEnum.E);
+
+    });
+
+    it("Should support multiple from and single to", async () => {
+
+        tsm.updateConfig({
+            transitions: [
+                new Transition({
+                    from: LiteralEnum.A,
+                    to: [
+                        LiteralEnum.B,
+                        LiteralEnum.F
+                    ]
+                }),
+                new Transition({
+                    from: [
+                        LiteralEnum.A,
+                        LiteralEnum.B
+                    ],
+                    to: LiteralEnum.E
+                })
+            ]
+        });
+        
+        expect(tsm.getState()).toEqual(LiteralEnum.A);
+
+        await tsm.transit(LiteralEnum.B);
+
+        expect(tsm.getState()).toEqual(LiteralEnum.B);
+
+        await tsm.transit(LiteralEnum.E);
+
+        expect(tsm.getState()).toEqual(LiteralEnum.E);
+
     });
 
 });

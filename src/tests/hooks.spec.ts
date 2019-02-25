@@ -3,6 +3,7 @@ import { Transition } from "../models/transition.model";
 import { StateHookType } from "../models/state-lifecycle-hook-type.enum";
 import { State } from "../models/state.model";
 import { ThreadStateType } from "./thread-state-type.enum";
+import { LiteralEnum } from "./my-enum.enum";
 
 /**
  * The typed machine under test
@@ -19,12 +20,15 @@ const onBeforeEveryTransitionMock = jest.fn();
 const onInvalidTransitionMock = jest.fn();
 
 // initial state specific hooks: return true to allow entering/leaving in that state
-const onBeforeState_New_Enter = jest.fn().mockReturnValue(true);
+const onBeforeState_New_Enter = jest.fn().mockReturnValue(Promise.resolve(true));
 const onAfterState_New_Enter = jest.fn().mockReturnValue(true);
 const onAfterState_New_Leave = jest.fn().mockReturnValue(true);
-const onBeforeState_New_Leave = jest.fn().mockReturnValue(true);
+const onBeforeState_New_Leave = jest.fn().mockReturnValue(Promise.resolve(true));
 
 const onBeforeState_Ready_Enter = jest.fn().mockReturnValue(true);
+
+const onBeforeTransition_New2Ready = jest.fn();
+const onAfterTransition_New2Ready = jest.fn();
 
 // initialize a new TypedStateMachine
 beforeEach(async () => {
@@ -34,7 +38,9 @@ beforeEach(async () => {
             new Transition({
                 from: ThreadStateType.New,
                 to: ThreadStateType.Ready,
-                name: "wake_up()"
+                name: "wake_up()",
+                onAfterTransition: onBeforeTransition_New2Ready,
+                onBeforeTransition: onAfterTransition_New2Ready
             }),
             new Transition({
                 from: ThreadStateType.Ready,
@@ -52,6 +58,13 @@ beforeEach(async () => {
                 from: ThreadStateType.Waiting,
                 to: ThreadStateType.Ready,
                 name: "wake_up()"
+            }),
+            new Transition({
+                from: ThreadStateType.Terminated,
+                to: [
+                    ThreadStateType.New,
+                    ThreadStateType.Ready
+                ]
             })
         ],
 
@@ -140,7 +153,9 @@ describe("TypedStateMachine state hooks", () => {
 
         expect(tsm.can(ThreadStateType.New)).toBe(false);
 
-        tsm.setCanSelfLoop(true);
+        tsm.updateConfig({
+            canSelfLoop: true
+        });
 
         expect(tsm.can(ThreadStateType.New)).toBe(true);
     });
@@ -149,7 +164,9 @@ describe("TypedStateMachine state hooks", () => {
 
         expect(tsm.getState()).toBe(ThreadStateType.New)
 
-        tsm.setCanSelfLoop(true);
+        tsm.updateConfig({
+            canSelfLoop: true
+        });
 
         resetMockFunctions();
 
@@ -162,6 +179,9 @@ describe("TypedStateMachine state hooks", () => {
 
         expect(onBeforeState_New_Enter).toHaveBeenCalledTimes(1);
         expect(onBeforeState_New_Enter).toHaveBeenCalledTimes(1);
+
+        expect(onBeforeEveryTransitionMock).toHaveBeenCalledTimes(1);
+        expect(onAfterEveryTransitionMock).toHaveBeenCalledTimes(1);
     });
 
     it("Should respect given transitions", async () => {
@@ -190,6 +210,9 @@ describe("TypedStateMachine state hooks", () => {
         expect(tsm.getNextStates()).toEqual([
             ThreadStateType.Running
         ]);
+        expect(onBeforeTransition_New2Ready).toHaveBeenCalledTimes(1);
+        expect(onAfterTransition_New2Ready).toHaveBeenCalledTimes(1);
+
 
         success = await tsm.transit(ThreadStateType.Running);
         expect(success).toBe(true);
@@ -215,7 +238,7 @@ describe("TypedStateMachine state hooks", () => {
         expect(success).toBe(true);
         expect(tsm.getState()).toBe(ThreadStateType.Ready);
 
-        tsm["state"] = ThreadStateType.New;
+        tsm["_state"] = ThreadStateType.New;
 
 
         onBeforeState_Ready_Enter.mockReturnValue(false);
@@ -229,6 +252,315 @@ describe("TypedStateMachine state hooks", () => {
 
 });
 
+describe("Hooks: OnBeforeEnter", () => {
+    it("Should take care hook boolean return value before proceeding", async () => {
+
+        const onBeforeEnterState = jest.fn().mockReturnValue(false);
+
+        tsm.updateConfig({
+            hooks: [
+                {
+                    state: ThreadStateType.Ready,
+                    handlers: [
+                        {
+                            hookType: StateHookType.OnBeforeEnter,
+                            handler: onBeforeEnterState
+                        }
+                    ]
+                }
+            ]
+        })
+
+        expect(tsm.getState()).toBe(ThreadStateType.New);
+
+        await tsm.transit(ThreadStateType.Ready);
+
+        expect(tsm.getState()).not.toBeDefined()
+
+    });
+
+    it("Should take care hook Promise<boolean> return value before proceeding", async () => {
+        
+        const onBeforeEnterState = jest.fn().mockReturnValue(Promise.resolve(false));
+
+        tsm.updateConfig({
+            hooks: [
+                {
+                    state: ThreadStateType.Ready,
+                    handlers: [
+                        {
+                            hookType: StateHookType.OnBeforeEnter,
+                            handler: onBeforeEnterState
+                        }
+                    ]
+                }
+            ]
+        })
+
+        expect(tsm.getState()).toBe(ThreadStateType.New);
+
+        await tsm.transit(ThreadStateType.Ready);
+
+        expect(tsm.getState()).not.toBeDefined()
+
+    });
+});
+
+describe("Hooks: OnBeforeLeave", () => {
+    it("Should take care hook boolean return value before proceeding", async () => {
+
+        const onBeforeLeaveState = jest.fn().mockReturnValue(false);
+
+        tsm.updateConfig({
+            hooks: [
+                {
+                    state: ThreadStateType.New,
+                    handlers: [
+                        {
+                            hookType: StateHookType.OnBeforeLeave,
+                            handler: onBeforeLeaveState
+                        }
+                    ]
+                }
+            ]
+        })
+
+        expect(tsm.getState()).toBe(ThreadStateType.New);
+
+        await tsm.transit(ThreadStateType.Ready);
+
+        expect(tsm.getState()).toBe(ThreadStateType.New);
+
+    });
+
+    it("Should take care hook Promise<boolean> return value before proceeding", async () => {
+        
+        const onBeforeLeaveState = jest.fn().mockReturnValue(Promise.resolve(false));
+
+        tsm.updateConfig({
+            hooks: [
+                {
+                    state: ThreadStateType.New,
+                    handlers: [
+                        {
+                            hookType: StateHookType.OnBeforeLeave,
+                            handler: onBeforeLeaveState
+                        }
+                    ]
+                }
+            ]
+        })
+
+        expect(tsm.getState()).toBe(ThreadStateType.New);
+
+        await tsm.transit(ThreadStateType.Ready);
+
+        expect(tsm.getState()).toBe(ThreadStateType.New);
+
+    });
+});
+
+describe("Hooks: OnAfterLeave", () => {
+    it("Should take care hook boolean return value before proceeding", async () => {
+
+        const onAfterLeaveState = jest.fn().mockReturnValue(false);
+
+        tsm.updateConfig({
+            hooks: [
+                {
+                    state: ThreadStateType.New,
+                    handlers: [
+                        {
+                            hookType: StateHookType.OnAfterLeave,
+                            handler: onAfterLeaveState
+                        }
+                    ]
+                }
+            ]
+        })
+
+        expect(tsm.getState()).toBe(ThreadStateType.New);
+
+        await tsm.transit(ThreadStateType.Ready);
+
+        expect(tsm.getState()).not.toBeDefined()
+
+    });
+
+    it("Should take care hook Promise<boolean> return value before proceeding", async () => {
+        
+        const onAfterLeaveState = jest.fn().mockReturnValue(Promise.resolve(false));
+
+        tsm.updateConfig({
+            hooks: [
+                {
+                    state: ThreadStateType.New,
+                    handlers: [
+                        {
+                            hookType: StateHookType.OnAfterLeave,
+                            handler: onAfterLeaveState
+                        }
+                    ]
+                }
+            ]
+        })
+
+        expect(tsm.getState()).toBe(ThreadStateType.New);
+
+        await tsm.transit(ThreadStateType.Ready);
+
+        expect(tsm.getState()).not.toBeDefined()
+
+    });
+});
+
+describe("Hooks: OnAfterEnter", () => {
+    it("Should take care hook boolean return value before proceeding", async () => {
+
+        const onAfterEnterState = jest.fn().mockReturnValue(false);
+
+        tsm.updateConfig({
+            hooks: [
+                {
+                    state: ThreadStateType.Ready,
+                    handlers: [
+                        {
+                            hookType: StateHookType.OnAfterEnter,
+                            handler: onAfterEnterState
+                        }
+                    ]
+                }
+            ]
+        })
+
+        expect(tsm.getState()).toBe(ThreadStateType.New);
+
+        await tsm.transit(ThreadStateType.Ready);
+
+        expect(tsm.getState()).toBe(ThreadStateType.Ready);
+
+    });
+
+    it("Should take care hook Promise<boolean> return value before proceeding", async () => {
+        
+
+        const onAfterEnterState = jest.fn().mockReturnValue(Promise.resolve(false));
+
+        tsm.updateConfig({
+            hooks: [
+                {
+                    state: ThreadStateType.Ready,
+                    handlers: [
+                        {
+                            hookType: StateHookType.OnAfterEnter,
+                            handler: onAfterEnterState
+                        }
+                    ]
+                }
+            ]
+        })
+
+        expect(tsm.getState()).toBe(ThreadStateType.New);
+
+        await tsm.transit(ThreadStateType.Ready);
+
+        expect(tsm.getState()).toBe(ThreadStateType.Ready);
+
+    });
+});
+
+describe("Goto method life cycles", () => {
+    it("Should invoke all life cycle of NOT existing transitions", async () => {
+
+        const onBeforeLeaveState_New = jest.fn().mockReturnValue(true);
+        const onAfterLeaveState_New = jest.fn().mockReturnValue(true);
+
+        const onBeforeEnterState_Terminated = jest.fn().mockReturnValue(true);
+        const onAfterEnterState_Terminated = jest.fn().mockReturnValue(true);
+        
+
+        tsm.updateConfig({
+            hooks: [
+                {
+                    state: ThreadStateType.Terminated,
+                    handlers: [
+                        {
+                            hookType: StateHookType.OnBeforeEnter,
+                            handler: onBeforeEnterState_Terminated
+                        },
+                        {
+                            hookType: StateHookType.OnAfterEnter,
+                            handler: onAfterEnterState_Terminated
+                        }
+                    ]
+                },
+                {
+                    state: ThreadStateType.New,
+                    handlers: [
+                        {
+                            hookType: StateHookType.OnBeforeLeave,
+                            handler: onBeforeLeaveState_New
+                        },
+                        {
+                            hookType: StateHookType.OnAfterLeave,
+                            handler: onAfterLeaveState_New
+                        }
+                    ]
+                }
+            ]
+        })
+
+        expect(tsm.getState()).toBe(ThreadStateType.New);
+
+        await tsm.goto(ThreadStateType.Terminated);
+
+        expect(tsm.getState()).toBe(ThreadStateType.Terminated);
+
+        expect(onBeforeLeaveState_New).toHaveBeenCalledTimes(1);
+        expect(onAfterLeaveState_New).toHaveBeenCalledTimes(1);
+        expect(onBeforeEnterState_Terminated).toHaveBeenCalledTimes(1);
+        expect(onAfterEnterState_Terminated).toHaveBeenCalledTimes(1);
+
+
+        // Expect 2 because the everyTransition in fired also in the initialize() of the machine
+        expect(onBeforeEveryTransitionMock).toHaveBeenCalledTimes(2);
+        expect(onAfterEveryTransitionMock).toHaveBeenCalledTimes(2);
+
+    });
+
+    it("Should invoke all life cycle of existing transitions", async () => {
+
+        const onAfterTransition = jest.fn().mockReturnValue(true);
+        const onBeforeTransition = jest.fn().mockReturnValue(true);
+        
+
+        tsm.updateConfig({
+            transitions: [
+                ...tsm.getAllTransitions(),
+                new Transition({
+                    from: ThreadStateType.New,
+                    to: ThreadStateType.Terminated,
+                    onAfterTransition: onAfterTransition,
+                    onBeforeTransition: onBeforeTransition
+                })
+            ]
+        })
+
+        expect(tsm.getState()).toBe(ThreadStateType.New);
+
+        await tsm.goto(ThreadStateType.Terminated);
+
+        expect(tsm.getState()).toBe(ThreadStateType.Terminated);
+
+        expect(onAfterTransition).toHaveBeenCalledTimes(1);
+        expect(onBeforeTransition).toHaveBeenCalledTimes(1);
+
+    });
+});
+
+/**
+ * Resent the mock information fo the callbacks
+ */
 function resetMockFunctions() {
     // general state hooks
     onStateEnterMock.mockClear();
@@ -244,6 +576,9 @@ function resetMockFunctions() {
     onAfterState_New_Enter.mockClear();
     onAfterState_New_Leave.mockClear();
     onBeforeState_New_Leave.mockClear();
+
+    onBeforeTransition_New2Ready.mockClear();
+    onAfterTransition_New2Ready.mockClear();
 
     onBeforeState_Ready_Enter.mockClear();
 }

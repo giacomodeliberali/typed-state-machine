@@ -7,7 +7,7 @@
 
 # Typed State Machine
 
-A library to describe finite state machine (aka DFA). 
+A library to describe finite state machine (aka DFAs). 
 
 <p align="center">
     <img src="./assets/threads_lifetime.gif" width="500px">
@@ -77,8 +77,32 @@ A library to describe finite state machine (aka DFA).
 Please note that this project is under active development and is **not ready for use**.
 
 ## Roadmap
-- Complete unit test
-- Add support to decorate an enum
+- Improve source code (refactoring)
+    - Add other utility methods:
+        ```typescript
+        // 1)
+        tsm.bindHook(StateType.A, (hookType: StateHookType) => {
+            if(hookType == StateHookType.OnBeforeLeave){
+                // ...
+            }
+        });
+
+        // 2)
+        tsm.transit("transitionName") // same as tsm.transit(MyState.NewState)
+
+        // 3)
+        tsm.transit(MyState.NewState, invokeLifecycles: bool)
+
+        // 4)
+        tsm.back();
+        tsm.forward();
+
+        // 5) 
+        transition.onBeforeTransition(tsm: TypedStateMachine, from: T, to: T);
+        transition.onAfterTransition(tsm: TypedStateMachine, from: T, to: T);
+        ```
+- Improve unit test organization
+- Add support to decorate an enum with reflect-metadata
 ```typescript
     enum StateType {
 
@@ -102,7 +126,7 @@ Please note that this project is under active development and is **not ready for
 
     const tsm = new TypedStateMachine(StateType);
 
-    tsm.bindHook(StateType.A, (hookType: StateHookType) =>{
+    tsm.bindHook(StateType.A, (hookType: StateHookType) => {
         if(hookType == StateHookType.OnBeforeLeave){
             // ...
         }
