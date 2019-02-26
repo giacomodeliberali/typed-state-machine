@@ -21,8 +21,7 @@ export class State<T> {
      * Create a new state
      * @param item The state configuration
      */
-    constructor(item?: Partial<State<T>>) {
-        if (item)
-            Object.assign(this, item);
+    constructor(item: Partial<State<T>>) {
+        Object.assign(this, item);
     }
 }

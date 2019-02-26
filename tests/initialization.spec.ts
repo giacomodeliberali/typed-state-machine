@@ -1,9 +1,8 @@
-import { TypedStateMachine } from "../typed-state-machine";
-import { Transition } from "../models/transition.model";
+import { Transition } from "../src/models/transition.model";
+import { TypedStateMachine } from "../src/typed-state-machine";
 import { LiteralEnum } from "./my-enum.enum";
-import { StateHookType } from "../models/state-lifecycle-hook-type.enum";
-import { State } from "../models/state.model";
-import { ThreadStateType } from "./thread-state-type.enum";
+import { StateHookType } from "../src/models/state-lifecycle-hook-type.enum";
+import { State } from "../src/models/state.model";
 
 /**
  * The typed machine under test
@@ -49,7 +48,6 @@ const onStateLeaveMock = jest.fn();
 // general transition hooks
 const onAfterEveryTransitionMock = jest.fn();
 const onBeforeEveryTransitionMock = jest.fn();
-const onInvalidTransitionMock = jest.fn();
 
 // initial state specific hooks
 const onBeforeState_A_Enter = jest.fn().mockReturnValue(true); // return true to allow entering in that state
@@ -66,7 +64,6 @@ beforeEach(async () => {
         onStateLeave: onStateLeaveMock,
         onAfterEveryTransition: onAfterEveryTransitionMock,
         onBeforeEveryTransition: onBeforeEveryTransitionMock,
-        onInvalidTransition: onInvalidTransitionMock,
 
         // state hooks
         hooks: [
@@ -131,7 +128,7 @@ describe("TypedStateMachine initialization", () => {
         expect(tsm.getConfig().canSelfLoop).toBe(false);
     });
 
-    it("Should return the initial state", () => {
+    it("Should set the initial state", () => {
         expect(tsm.getState()).toBe(LiteralEnum.A);
     });
 });
@@ -276,6 +273,8 @@ describe("TypedStateMachine initial states", () => {
 
         expect(tsm.getState()).toEqual(LiteralEnum.E);
 
+        expect(tsm.can(LiteralEnum.A)).toBe(false);
+
     });
 
     it("Should support multiple from and single to", async () => {
@@ -314,16 +313,5 @@ describe("TypedStateMachine initial states", () => {
 });
 
 afterEach(() => {
-    // general state hooks
-    onStateEnterMock.mockClear();
-    onStateLeaveMock.mockClear();
-
-    // general transition hooks
-    onAfterEveryTransitionMock.mockClear();
-    onBeforeEveryTransitionMock.mockClear();
-    onInvalidTransitionMock.mockClear();
-
-    // initial state specific hooks
-    onBeforeState_A_Enter.mockClear();
-    onAfterState_A_Enter.mockClear();
+    jest.clearAllMocks();
 });

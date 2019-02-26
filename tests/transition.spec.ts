@@ -1,5 +1,5 @@
-import { Transition } from "../models/transition.model";
 import { LiteralEnum } from "./my-enum.enum";
+import { Transition } from "../src/models/transition.model";
 
 const transitions = [
     new Transition({

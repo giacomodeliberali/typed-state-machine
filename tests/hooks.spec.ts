@@ -1,9 +1,7 @@
-import { TypedStateMachine } from "../typed-state-machine";
-import { Transition } from "../models/transition.model";
-import { StateHookType } from "../models/state-lifecycle-hook-type.enum";
-import { State } from "../models/state.model";
 import { ThreadStateType } from "./thread-state-type.enum";
-import { LiteralEnum } from "./my-enum.enum";
+import { TypedStateMachine } from "../src/typed-state-machine";
+import { Transition } from "../src/models/transition.model";
+import { StateHookType } from "../src/models/state-lifecycle-hook-type.enum";
 
 /**
  * The typed machine under test
@@ -168,7 +166,7 @@ describe("TypedStateMachine state hooks", () => {
             canSelfLoop: true
         });
 
-        resetMockFunctions();
+        jest.clearAllMocks();
 
         await tsm.transit(ThreadStateType.New);
 
@@ -248,6 +246,16 @@ describe("TypedStateMachine state hooks", () => {
         expect(success).toBe(false);
         expect(tsm.getState()).not.toBeDefined();
 
+    });
+
+
+    it("Should call onInvalidTransition if a not allowed transition is performed", async () => {
+
+        expect(onInvalidTransitionMock).not.toHaveBeenCalled();
+
+        await tsm.transit(ThreadStateType.Terminated);
+
+        expect(onInvalidTransitionMock).toHaveBeenCalledTimes(1);
     });
 
 });
@@ -558,31 +566,6 @@ describe("Goto method life cycles", () => {
     });
 });
 
-/**
- * Resent the mock information fo the callbacks
- */
-function resetMockFunctions() {
-    // general state hooks
-    onStateEnterMock.mockClear();
-    onStateLeaveMock.mockClear();
-
-    // general transition hooks
-    onAfterEveryTransitionMock.mockClear();
-    onBeforeEveryTransitionMock.mockClear();
-    onInvalidTransitionMock.mockClear();
-
-    // initial state specific hooks
-    onBeforeState_New_Enter.mockClear();
-    onAfterState_New_Enter.mockClear();
-    onAfterState_New_Leave.mockClear();
-    onBeforeState_New_Leave.mockClear();
-
-    onBeforeTransition_New2Ready.mockClear();
-    onAfterTransition_New2Ready.mockClear();
-
-    onBeforeState_Ready_Enter.mockClear();
-}
-
 afterEach(() => {
-    resetMockFunctions();
+    jest.clearAllMocks()
 });

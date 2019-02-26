@@ -4,9 +4,9 @@
   "description": "A typed state machine inspired by jakesgordon/javascript-state-machine",
   "main": "dist/index.js",
   "scripts": {
-    "test": "jest --verbose",
-    "test:watch": "jest --verbose --coverage --watch",
-    "test:cov": "jest --verbose --coverage",
+    "test": "jest",
+    "test:watch": "jest --coverage --watch",
+    "test:cov": "jest --coverage",
     "test:coveralls": "jest --coverage --coverageReporters=text-lcov | coveralls",
     "start": "nodemon",
     "build": "tsc",
@@ -45,16 +45,22 @@
     "rxjs": "^6.4.0"
   },
   "jest": {
+    "verbose": true,
     "moduleFileExtensions": [
       "js",
       "json",
       "ts"
     ],
-    "rootDir": "src",
     "testRegex": ".spec.ts$",
     "transform": {
       "^.+\\.ts$": "ts-jest"
     },
-    "coverageDirectory": "../coverage"
+    "rootDir": "./",
+    "coveragePathIgnorePatterns": [
+      "/node_modules/",
+      "/package.json",
+      "/tests"
+    ],
+    "coverageDirectory": "coverage"
   }
 }

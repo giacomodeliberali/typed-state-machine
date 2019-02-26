@@ -34,9 +34,8 @@ export class Transition<T>{
      * Create a new transition function
      * @param config The transition configuration
      */
-    constructor(config?: Partial<Transition<T>>) {
-        if (config)
-            Object.assign(this, config);
+    constructor(config: Partial<Transition<T>>) {
+        Object.assign(this, config);
     }
 
     /**
