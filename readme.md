@@ -77,59 +77,65 @@ A library to describe finite state machine (aka DFAs).
 Please note that this project is under active development and is **not ready for use**.
 
 ## Roadmap
-- Improve source code (refactoring)
-    - Add other utility methods:
+- [ ] Improve source code (refactoring)
+    - [ ] Add other utility methods:
         ```typescript
-        // 1)
         tsm.bindHook(StateType.A, (hookType: StateHookType) => {
             if(hookType == StateHookType.OnBeforeLeave){
                 // ...
             }
         });
-
-        // 2)
-        tsm.transit("transitionName") // same as tsm.transit(MyState.NewState)
-
-        // 3)
+        ```
+    - [x] Transit by name (with context-awareness)
+        ```typescript
+        tsm.transit("transitionName")
+        ```
+    - [ ] Add options to ignore hooks and events
+        ```typescript
         tsm.transit(MyState.NewState, invokeLifecycles: bool)
-
-        // 4)
+        ```
+    - [ ] Keep track of previous states
+        ```typescript
         tsm.back();
         tsm.forward();
-
-        // 5) 
+        ```
+    - [ ] Add more information in fired events
+        ```typescript
         transition.onBeforeTransition(tsm: TypedStateMachine, from: T, to: T);
         transition.onAfterTransition(tsm: TypedStateMachine, from: T, to: T);
         ```
-- Improve unit test organization
-- Add support to decorate an enum with reflect-metadata
-```typescript
-    enum StateType {
+- [ ] Improve unit test organization
+- [ ] Add support to decorate an enum with reflect-metadata
+    ```typescript
+        enum StateType {
 
-        @Transition({
-            to: [
-                StateType.Inactive,
-                StateType.Paused
-            ]
-        })
-        Active,
+            @Transition({
+                to: [
+                    StateType.Inactive,
+                    StateType.Paused
+                ]
+            })
+            Active,
 
-        @Transition({ ... })
-        Paused,
+            @Transition({ ... })
+            Paused,
 
-        @Transition({ ... })
-        Inactive,
+            @Transition({ ... })
+            Inactive,
 
-        @Transition({ ... })
-        Stopped
-    }
-
-    const tsm = new TypedStateMachine(StateType);
-
-    tsm.bindHook(StateType.A, (hookType: StateHookType) => {
-        if(hookType == StateHookType.OnBeforeLeave){
-            // ...
+            @Transition({ ... })
+            Stopped
         }
-    });
-```
-- Add pluggable modules for visualization and history
+
+        const tsm = new TypedStateMachine(StateType);
+
+        tsm.bindHook(StateType.A, (hookType: StateHookType) => {
+            if(hookType == StateHookType.OnBeforeLeave){
+                // ...
+            }
+        });
+    ```
+- [ ] Add pluggable modules
+    - [ ] History
+    - [ ] Visualization
+    - [ ] ...

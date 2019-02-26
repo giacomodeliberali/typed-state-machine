@@ -59,7 +59,8 @@
     "coveragePathIgnorePatterns": [
       "/node_modules/",
       "/package.json",
-      "/tests"
+      "/tests",
+      "/.vscode/"
     ],
     "coverageDirectory": "coverage"
   }

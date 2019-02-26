@@ -131,6 +131,14 @@ describe("TypedStateMachine initialization", () => {
     it("Should set the initial state", () => {
         expect(tsm.getState()).toBe(LiteralEnum.A);
     });
+
+    it("Should throw an error if a falsy state is requested", async () => {
+        expect(tsm.getState()).toBe(LiteralEnum.A);
+        
+        expect(tsm.transit(undefined)).rejects.toEqual(new Error("Cannot transit to invalid state!"));
+        expect(tsm.transit(null)).rejects.toEqual(new Error("Cannot transit to invalid state!"));
+        expect(tsm.transit(0 as any)).resolves.toEqual(false);
+    });
 });
 
 describe("TypedStateMachine initialization hooks", () => {
@@ -241,7 +249,7 @@ describe("TypedStateMachine initial states", () => {
         tsm.updateConfig({
             canSelfLoop: true
         });
-        
+
         expect(tsm.config.canSelfLoop).toEqual(true);
     });
 
@@ -262,7 +270,7 @@ describe("TypedStateMachine initial states", () => {
                 })
             ]
         });
-        
+
         expect(tsm.getState()).toEqual(LiteralEnum.A);
 
         await tsm.transit(LiteralEnum.B);
@@ -297,7 +305,7 @@ describe("TypedStateMachine initial states", () => {
                 })
             ]
         });
-        
+
         expect(tsm.getState()).toEqual(LiteralEnum.A);
 
         await tsm.transit(LiteralEnum.B);

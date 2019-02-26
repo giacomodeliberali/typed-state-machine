@@ -206,6 +206,53 @@ export class TypedStateMachine<T> {
     }
 
     /**
+     * Make a transition from the current state to the first applicable state
+     * of the transition with the specified name.
+     * 
+     * If multiple transition have the same name, the first applicable state
+     * is is picked up traversing transitions in order of declaration.
+     * 
+     * If the transition has an array in "to" the first applicable state is is picked up.
+     * 
+     * @param transitionName The target transition name
+     */
+    public async transitByName(transitionName: string): Promise<boolean> {
+
+        const transitions = this.config.transitions.filter(t => t.name == transitionName);
+
+        if (!transitions || transitions.length == 0) {
+            throw new Error("The supplied transition name does not exist");
+        }
+
+        let targetTransition: Transition<T> = transitions.find(t => {
+            if (Array.isArray(t.to)) {
+                return !!t.to.find(toState => this.can(toState));
+            } else {
+                return this.can(t.to)
+            }
+        });
+
+        if (!targetTransition) {
+            if (this._config.onInvalidTransition)
+                this.config.onInvalidTransition(this, this._state, undefined);
+            return Promise.resolve(false);
+        }
+
+        let newState: T = null;
+
+        if (Array.isArray(targetTransition.to)) {
+            newState = targetTransition.to.find(target => {
+                return this.can(target);
+            });
+        } else {
+            newState = targetTransition.to;
+        }
+
+
+        return this._transit(targetTransition, newState);
+    }
+
+    /**
      * Perform a transition from the current state to the given new state, if possible.
      * If the transition is not possible return false, true if the transition succeeded.
      * 
@@ -214,10 +261,10 @@ export class TypedStateMachine<T> {
      *  - onBeforeTransition
      *  - OnBeforeLeave [state]
      *  - onStateLeave
-     *  - OnAfterLeave
+     *  - OnAfterLeave [state]
      *  - OnBeforeEnter [state]
      *  - onStateEnter
-     *  - OnAfterEnter
+     *  - OnAfterEnter [state]
      *  - onAfterTransition
      *  - onAfterEveryTransition
      * 
@@ -235,29 +282,43 @@ export class TypedStateMachine<T> {
             })
         }
 
+        return this._transit(transition, newState);
+    }
+
+    /**
+     * Changes the state of the machine 
+     * @param transition The transition that eventually contains the hooks to invoke
+     * @param newState The new state to reach
+     * @param options The options to ignore hooks or events
+     */
+    private async _transit(transition: Transition<T>, newState: T, options?: TransitOptions): Promise<boolean> {
+
+        if (newState == null || newState == undefined) {
+            throw new Error("Cannot transit to invalid state!");
+        }
+
+        // update default options
+        options = Object.assign({
+            ignoreHooksResults: false,
+            invokeHooks: true,
+            fireEvents: true
+        } as TransitOptions, options || {});
+
         if (transition) {
 
-            // on before transition
-            // on before leave
-            // on after leave
-            // on before enter
-            // on after enter
-            // on after transition
-
-            if (this._config.onBeforeEveryTransition)
+            if (options.fireEvents && this._config.onBeforeEveryTransition)
                 this._config.onBeforeEveryTransition(this);
 
-
-            if (transition.onBeforeTransition)
+            if (options.fireEvents && transition.onBeforeTransition)
                 transition.onBeforeTransition(this);
 
-            const currentState = this.getState();
-            let canProceed = await this.triggerHooks(currentState, StateHookType.OnBeforeLeave);
-            if (!canProceed)
-                return false;
+            if (options.invokeHooks) {
+                let canProceed = await this.triggerHooks(this._state, StateHookType.OnBeforeLeave);
+                if (!options.ignoreHooksResults && !canProceed)
+                    return false;
+            }
 
-            // fire event
-            if (this._config.onStateLeave)
+            if (options.fireEvents && this._config.onStateLeave)
                 this._config.onStateLeave(this, this._state);
 
             // just left old status
@@ -266,13 +327,17 @@ export class TypedStateMachine<T> {
             // status is undefined now
             this._state = undefined;
 
-            canProceed = await this.triggerHooks(currentState, StateHookType.OnAfterLeave);
-            if (!canProceed)
-                return false;
+            if (options.invokeHooks) {
+                let canProceed = await this.triggerHooks(oldState, StateHookType.OnAfterLeave);
+                if (!options.ignoreHooksResults && !canProceed)
+                    return false;
+            }
 
-            canProceed = await this.triggerHooks(newState, StateHookType.OnBeforeEnter);
-            if (!canProceed)
-                return false;
+            if (options.invokeHooks) {
+                let canProceed = await this.triggerHooks(newState, StateHookType.OnBeforeEnter);
+                if (!options.ignoreHooksResults && !canProceed)
+                    return false;
+            }
 
             // update the state
             this._state = newState;
@@ -281,29 +346,37 @@ export class TypedStateMachine<T> {
             if (this._config.onStateEnter)
                 this._config.onStateEnter(this, this._state);
 
-            canProceed = await this.triggerHooks(this._state, StateHookType.OnAfterEnter);
-            if (!canProceed)
-                return false;
+            if (options.invokeHooks) {
+                let canProceed = await this.triggerHooks(this._state, StateHookType.OnAfterEnter);
+                if (!options.ignoreHooksResults && !canProceed)
+                    return false;
+            }
 
-            if (transition.onAfterTransition)
+            if (options.fireEvents && transition.onAfterTransition)
                 transition.onAfterTransition(this);
 
 
-            if (this._config.onAfterEveryTransition)
+            if (options.fireEvents && this._config.onAfterEveryTransition)
                 this._config.onAfterEveryTransition(this);
 
             return true;
 
         } else {
             // on invalid transition
-
-            if (this._config.onInvalidTransition)
+            if (options.fireEvents && this._config.onInvalidTransition)
                 this._config.onInvalidTransition(this, this._state, newState);
 
         }
         return false;
     }
 
+    /**
+     * Return a transition from the current state to the newState, if it exists.
+     * 
+     * Return null if the transition does not exist
+     * 
+     * @param newState The new state
+     */
     private getTransition(newState: T): Transition<T> {
         let toRet: Transition<T> = null;
         this._config.transitions.forEach(transition => {
@@ -354,57 +427,63 @@ export class TypedStateMachine<T> {
      * Perform a transition from the current state to the given new state (without checking at the given transitions).
      * 
      * During this transition all life cycles events will be triggered.
+     * 
      * @param newState The destination state
      */
     public async goto(newState: T): Promise<void> {
         let transition = this.getTransition(newState);
 
         if (!transition) {
-            // self transition
+            // not existing transition, so no hooks
             transition = new Transition({
                 from: this._state,
                 to: newState
             })
         }
 
-        if (this._config.onBeforeEveryTransition)
-            this._config.onBeforeEveryTransition(this);
+        await this._transit(transition, newState, {
+            ignoreHooksResults: true
+        });
 
-
-        if (transition.onBeforeTransition)
-            transition.onBeforeTransition(this);
-
-        const currentState = this.getState();
-        await this.triggerHooks(currentState, StateHookType.OnBeforeLeave);
-
-        // fire event
-        if (this._config.onStateLeave)
-            this._config.onStateLeave(this, this._state);
-
-        // just left old status
-        const oldState = this._state;
-
-        // status is undefined now
-        this._state = undefined;
-
-        await this.triggerHooks(currentState, StateHookType.OnAfterLeave);
-
-        await this.triggerHooks(newState, StateHookType.OnBeforeEnter);
-
-        // update the state
-        this._state = newState;
-
-        // fire event
-        if (this._config.onStateEnter)
-            this._config.onStateEnter(this, this._state);
-
-        await this.triggerHooks(this._state, StateHookType.OnAfterEnter);
-
-        if (transition.onAfterTransition)
-            transition.onAfterTransition(this);
-
-
-        if (this._config.onAfterEveryTransition)
-            this._config.onAfterEveryTransition(this);
     }
+}
+
+interface TransitOptions {
+    /**
+     * Indicate if the current transition should invoke events on transitions:
+     * 
+     *  - onBeforeEveryTransition
+     *  - onBeforeTransition
+     * 
+     *  - onStateLeave
+     *  - onStateEnter
+     * 
+     *  - onAfterTransition
+     *  - onAfterEveryTransition
+     * 
+     *  - onInvalidTransition
+     */
+
+    fireEvents?: boolean;
+
+    /**
+     * Indicate if the current transition should invoke hooks on states:
+     * 
+     *  - OnBeforeLeave
+     *  - OnAfterLeave 
+     *  - OnBeforeEnter
+     *  - OnAfterEnter
+     */
+    invokeHooks?: boolean;
+
+    /**
+     * Indicate if the current transition should invoke but ignore
+     * results of hooks on states:
+     * 
+     *  - OnBeforeLeave
+     *  - OnAfterLeave 
+     *  - OnBeforeEnter
+     *  - OnAfterEnter
+     */
+    ignoreHooksResults?: boolean;
 }
