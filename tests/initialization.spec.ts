@@ -86,6 +86,51 @@ beforeEach(async () => {
 
 describe("TypedStateMachine initialization", () => {
 
+    it("Should require a configuration", () => {
+        expect(() => new TypedStateMachine(null)).toThrowError();
+        expect(() => new TypedStateMachine(undefined)).toThrowError();
+    });
+
+    it("Should require an initial state", () => {
+
+        expect(() => new TypedStateMachine({
+            transitions: [],
+            initialState: undefined
+        })).toThrowError();
+
+        expect(() => new TypedStateMachine({
+            transitions: [],
+            initialState: null
+        })).toThrowError();
+
+        expect(() => new TypedStateMachine({
+            transitions: [],
+            initialState: 0
+        })).not.toThrowError();
+
+    });
+
+    it("Should not crash if transition are not given at constructor", async () => {
+
+        let lTsm: TypedStateMachine<number>;
+
+        expect(() => {
+            lTsm = new TypedStateMachine({
+                transitions: null,
+                initialState: 0
+            });
+        }).not.toThrowError();
+
+        expect(() => lTsm.getAllTransitions()).toThrowError(); // missing initialization
+
+        await lTsm.initialize();
+
+        expect(lTsm.getAllTransitions()).toEqual([]);
+
+        expect(lTsm.getAllStates()).toEqual([]);
+
+    });
+
     it("Should NOT reference the given transitions array", () => {
         const transFun = tsm.getAllTransitions();
 
@@ -134,9 +179,9 @@ describe("TypedStateMachine initialization", () => {
 
     it("Should throw an error if a falsy state is requested", async () => {
         expect(tsm.getState()).toBe(LiteralEnum.A);
-        
-        expect(tsm.transit(undefined)).rejects.toEqual(new Error("Cannot transit to invalid state!"));
-        expect(tsm.transit(null)).rejects.toEqual(new Error("Cannot transit to invalid state!"));
+
+        expect(tsm.transit(undefined)).rejects.toThrowError();
+        expect(tsm.transit(null)).rejects.toThrowError();
         expect(tsm.transit(0 as any)).resolves.toEqual(false);
     });
 });
