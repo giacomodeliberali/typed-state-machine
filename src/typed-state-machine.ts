@@ -90,7 +90,7 @@ export class TypedStateMachine<T> {
      */
     public async initialize(options?: TransitOptions) {
 
-        if(this._isInitialized)
+        if (this._isInitialized)
             throw new Error("The machine is already initialized and cannot be reinitialized twice.");
 
         // ensure correct options
@@ -256,15 +256,17 @@ export class TypedStateMachine<T> {
      * 
      * @param transitionName The target transition name
      */
-    public async transitByName(transitionName: string): Promise<boolean> {
+    public async transitByName(transitionName: string, options?: TransitOptions): Promise<boolean> {
 
         this.checkInitialization();
 
         const transitions = this.config.transitions.filter(t => t.name == transitionName);
 
-        if (!transitions || transitions.length == 0) {
+        if (!transitions || transitions.length == 0)
             throw new Error("The supplied transition name does not exist");
-        }
+
+        // ensure correct options
+        options = Object.assign({}, this._defaultTransitOptions, options || {});
 
         let targetTransition: Transition<T> = transitions.find(t => {
             if (Array.isArray(t.to)) {
@@ -278,7 +280,7 @@ export class TypedStateMachine<T> {
             EventsBuilder
                 .bind(this._config.onInvalidTransition)
                 .toArgs([this, this._state, undefined])
-                .fire(); //TODO: check flag
+                .fireIf(options.fireEvents);
 
             return Promise.resolve(false);
         }
@@ -321,8 +323,8 @@ export class TypedStateMachine<T> {
 
         let transition = this.getTransition(newState);
 
-        if (this.isSelfLoop(newState) && this._config.canSelfLoop) {
-            // self transition
+        if (!transition && this._config.canSelfLoop && this.isSelfLoop(newState)) {
+            // create a new runtime transition to emulate the self loop
             transition = new Transition({
                 from: newState,
                 to: newState
