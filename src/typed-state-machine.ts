@@ -4,6 +4,8 @@ import { HookFunction } from "./models/hook-function.model";
 import { State } from "./models/state.model";
 import { TypedStateMachineConfig } from "./models/typed-state-machine-config.interface";
 import { TransitOptions } from "./models/transit-options.interface";
+import { HooksHelper } from "./helpers/hooks.helper";
+import { EventsBuilder } from "./helpers/events-builder.helper";
 
 /**
  * A strongly typed state machine inspired by finite-state-machine
@@ -234,26 +236,9 @@ export class TypedStateMachine<T> {
      */
     private async triggerHooks(state: T, hookType: StateHookType): Promise<boolean> {
 
-        const hooks: Array<HookFunction<T>> = this.getHooksOfState(state);
-        const resolvers: Array<Promise<boolean>> = [];
-        let okFlag = true;
+        const hooks = this.getHooksOfState(state);
 
-        hooks.forEach(hooks => {
-            hooks.handlers.forEach(handlerConfig => {
-                if (handlerConfig.hookType == hookType) {
-                    const result = handlerConfig.handler(this);
-                    if (result instanceof Promise) {
-                        resolvers.push(result);
-                    } else {
-                        okFlag = okFlag && result;
-                    }
-                }
-            });
-        });
-
-        const okFlagPromise = await Promise.all(resolvers);
-
-        return okFlag && okFlagPromise.reduce((acc, value) => { return value && acc }, true);
+        return HooksHelper.triggerHooks(hooks, hookType, this);
     }
 
     /**
@@ -286,9 +271,12 @@ export class TypedStateMachine<T> {
         });
 
         if (!targetTransition) {
-            // TODO: check the config before firing events (the flag might be off!)
-            if (this._config.onInvalidTransition)
-                this.config.onInvalidTransition(this, this._state, undefined);
+
+            EventsBuilder
+                .bind(this._config.onInvalidTransition)
+                .toArgs([this, this._state, undefined])
+                .fire(); //TODO: check flag
+
             return Promise.resolve(false);
         }
 
@@ -354,72 +342,90 @@ export class TypedStateMachine<T> {
         if (newState == null || newState == undefined)
             throw new Error("Cannot transit to invalid state!");
 
+        // ensure correct options
         options = Object.assign({}, this._defaultTransitOptions, options || {});
 
-        if (transition) {
+        if (!transition) {
+            // fire onInvalidTransition
+            EventsBuilder
+                .bind(this.config.onInvalidTransition)
+                .toArgs([this, this._state, newState])
+                .fireIf(options.fireEvents);
 
-            if (options.fireEvents && this._config.onBeforeEveryTransition)
-                this._config.onBeforeEveryTransition(this);
-
-            if (options.fireEvents && transition.onBeforeTransition)
-                transition.onBeforeTransition(this);
-
-            if (options.invokeHooks) {
-                let canProceed = await this.triggerHooks(this._state, StateHookType.OnBeforeLeave);
-                if (!options.ignoreHooksResults && !canProceed)
-                    return false;
-            }
-
-            if (options.fireEvents && this._config.onStateLeave)
-                this._config.onStateLeave(this, this._state);
-
-            // just left old status
-            const oldState = this._state;
-
-            // status is undefined now
-            this._state = undefined;
-
-            if (options.invokeHooks) {
-                let canProceed = await this.triggerHooks(oldState, StateHookType.OnAfterLeave);
-                if (!options.ignoreHooksResults && !canProceed)
-                    return false;
-            }
-
-            if (options.invokeHooks) {
-                let canProceed = await this.triggerHooks(newState, StateHookType.OnBeforeEnter);
-                if (!options.ignoreHooksResults && !canProceed)
-                    return false;
-            }
-
-            // update the state
-            this._state = newState;
-
-            // fire event
-            if (this._config.onStateEnter)
-                this._config.onStateEnter(this, this._state);
-
-            if (options.invokeHooks) {
-                let canProceed = await this.triggerHooks(this._state, StateHookType.OnAfterEnter);
-                if (!options.ignoreHooksResults && !canProceed)
-                    return false;
-            }
-
-            if (options.fireEvents && transition.onAfterTransition)
-                transition.onAfterTransition(this);
-
-
-            if (options.fireEvents && this._config.onAfterEveryTransition)
-                this._config.onAfterEveryTransition(this);
-
-            return true;
-
-        } else {
-            // on invalid transition
-            if (options.fireEvents && this._config.onInvalidTransition)
-                this._config.onInvalidTransition(this, this._state, newState);
-
+            return false;
         }
-        return false;
+
+        // fire onBeforeEveryTransition
+        EventsBuilder
+            .bind(this._config.onBeforeEveryTransition)
+            .toArgs([this])
+            .fireIf(options.fireEvents);
+
+        // fire onBeforeTransition
+        EventsBuilder
+            .bind(transition.onBeforeTransition)
+            .toArgs([this])
+            .fireIf(options.fireEvents);
+
+        if (options.invokeHooks) {
+            let canProceed = await this.triggerHooks(this._state, StateHookType.OnBeforeLeave);
+            if (!options.ignoreHooksResults && !canProceed)
+                return false;
+        }
+
+        // fire onStateLeave
+        EventsBuilder
+            .bind(this._config.onStateLeave)
+            .toArgs([this, this._state])
+            .fireIf(options.fireEvents);
+
+        // just left old status
+        const oldState = this._state;
+
+        // status is undefined now
+        this._state = undefined;
+
+        if (options.invokeHooks) {
+            let canProceed = await this.triggerHooks(oldState, StateHookType.OnAfterLeave);
+            if (!options.ignoreHooksResults && !canProceed)
+                return false;
+        }
+
+        if (options.invokeHooks) {
+            let canProceed = await this.triggerHooks(newState, StateHookType.OnBeforeEnter);
+            if (!options.ignoreHooksResults && !canProceed)
+                return false;
+        }
+
+        // update the state
+        this._state = newState;
+
+
+        // fire onStateEnter
+        EventsBuilder
+            .bind(this._config.onStateEnter)
+            .toArgs([this, this._state])
+            .fireIf(options.fireEvents);
+
+        if (options.invokeHooks) {
+            let canProceed = await this.triggerHooks(this._state, StateHookType.OnAfterEnter);
+            if (!options.ignoreHooksResults && !canProceed)
+                return false;
+        }
+
+        // fire onAfterTransition
+        EventsBuilder
+            .bind(transition.onAfterTransition)
+            .toArgs([this])
+            .fireIf(options.fireEvents);
+
+        // fire onAfterEveryTransition
+        EventsBuilder
+            .bind(this.config.onAfterEveryTransition)
+            .toArgs([this])
+            .fireIf(options.fireEvents);
+
+        return true;
     }
 
     /**

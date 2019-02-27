@@ -1,10 +1,5 @@
 import { StateHookType } from "./state-lifecycle-hook-type.enum";
-import { TypedStateMachine } from "../typed-state-machine";
-
-/**
- * Represent a state hook function
- */
-export type HookHandler<T> = (tsm: TypedStateMachine<T>) => boolean | Promise<boolean>;
+import { HookHandler } from "./hook-handler.type";
 
 /**
  * Represent a configuration for a state hook
