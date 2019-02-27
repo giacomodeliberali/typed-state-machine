@@ -4,7 +4,6 @@ import { HookFunction } from "./models/hook-function.model";
 import { State } from "./models/state.model";
 import { TypedStateMachineConfig } from "./models/typed-state-machine-config.interface";
 import { TransitOptions } from "./models/transit-options.interface";
-import { HooksHelper } from "./helpers/hooks.helper";
 import { EventsBuilder } from "./helpers/events-builder.helper";
 
 /**
@@ -89,26 +88,44 @@ export class TypedStateMachine<T> {
     /**
      * Initialize the machine with the initial state and invokes the registered hooks
      */
-    public async initialize() {
+    public async initialize(options?: TransitOptions) {
 
-        // TODO: check the config before firing events (the flag might be off!)
-        if (this._config.onBeforeEveryTransition)
-            this._config.onBeforeEveryTransition(this);
+        if(this._isInitialized)
+            throw new Error("The machine is already initialized and cannot be reinitialized twice.");
 
-        // TODO: check the config before invoking hooks (the flag might be off!)
-        const canProceed = await this.triggerHooks(this._config.initialState, StateHookType.OnBeforeEnter);
-        if (canProceed) {
+        // ensure correct options
+        options = Object.assign({}, this._defaultTransitOptions, options || {});
 
-            if (this._config.onStateEnter)
-                this._config.onStateEnter(this, this._config.initialState);
+        EventsBuilder
+            .bind(this.config.onBeforeEveryTransition)
+            .toArgs([this])
+            .fireIf(options.fireEvents);
 
-            this._state = this._config.initialState;
-
-            await this.triggerHooks(this._state, StateHookType.OnAfterEnter);
-
-            if (this._config.onAfterEveryTransition)
-                this._config.onAfterEveryTransition(this);
+        if (options.invokeHooks) {
+            const canProceed = await this.invokeHook(this._config.initialState, StateHookType.OnBeforeEnter);
+            if (!canProceed && !options.ignoreHooksResults)
+                throw new Error(`The hook ${StateHookType[StateHookType.OnBeforeEnter]} of state ${this.config.initialState} returned value "${canProceed}", that prevented the machine to be initialized properly. This value should be "true | Promise<true>"`);
         }
+
+        // set initial state
+        this._state = this._config.initialState;
+
+        EventsBuilder
+            .bind(this.config.onStateEnter)
+            .toArgs([this, this.config.initialState])
+            .fireIf(options.fireEvents);
+
+
+        if (options.invokeHooks) {
+            const canProceed = await this.invokeHook(this._state, StateHookType.OnAfterEnter);
+            if (!canProceed && !options.ignoreHooksResults)
+                console.warn(`The hook ${StateHookType[StateHookType.OnAfterEnter]} of state ${this._state} returned => ${canProceed}`);
+        }
+
+        EventsBuilder
+            .bind(this.config.onAfterEveryTransition)
+            .toArgs([this])
+            .fireIf(options.fireEvents);
 
         // mark as initialized
         this._isInitialized = true;
@@ -132,8 +149,6 @@ export class TypedStateMachine<T> {
      * Return the current internal state of the machine
      */
     public getState(): T {
-        // TODO: a pending flag must be added in order to prevent inconsistent value
-        // if a getState() is called during hook resolution
         this.checkInitialization();
         return this._state;
     }
@@ -212,33 +227,22 @@ export class TypedStateMachine<T> {
     }
 
     /**
-     * Returns all the hooks of a given state
-     * @param targetState The state of which you want to obtain the hooks
-     */
-    private getHooksOfState(targetState: T): Array<HookFunction<T>> {
-
-        // TODO: move in a helper class
-
-        const hooks: Array<HookFunction<T>> = [];
-
-        this._config.hooks.forEach(configuredHook => {
-            if (configuredHook.state == targetState)
-                hooks.push(configuredHook);
-        });
-
-        return hooks;
-    }
-
-    /**
-     * Execute all the specified hooks af a given state
-     * @param state The state of which you want to execute the hooks
+     * Execute the first hook that matches the target state and the hookType
+     * @param targetState The state of which you want to execute the hook
      * @param hookType The hook type that you want to execute
      */
-    private async triggerHooks(state: T, hookType: StateHookType): Promise<boolean> {
+    private async invokeHook(targetState: T, hookType: StateHookType): Promise<boolean> {
 
-        const hooks = this.getHooksOfState(state);
+        const stateHooks = this._config.hooks
+            .find(configuredHook => configuredHook.state == targetState);
 
-        return HooksHelper.triggerHooks(hooks, hookType, this);
+        if (stateHooks && stateHooks.handlers) {
+            const hookFunction = stateHooks.handlers.find(h => h.hookType == hookType);
+            if (hookFunction && typeof hookFunction.handler == "function")
+                return hookFunction.handler.call(undefined, this);
+        }
+
+        return true;
     }
 
     /**
@@ -271,7 +275,6 @@ export class TypedStateMachine<T> {
         });
 
         if (!targetTransition) {
-
             EventsBuilder
                 .bind(this._config.onInvalidTransition)
                 .toArgs([this, this._state, undefined])
@@ -318,7 +321,7 @@ export class TypedStateMachine<T> {
 
         let transition = this.getTransition(newState);
 
-        if (!transition && (newState != null && newState != undefined) && this._config.canSelfLoop) {
+        if (this.isSelfLoop(newState) && this._config.canSelfLoop) {
             // self transition
             transition = new Transition({
                 from: newState,
@@ -330,14 +333,21 @@ export class TypedStateMachine<T> {
     }
 
     /**
+     * Return true if the transition to the target state is a self loop from the current state or not.
+     * @param newState The target state
+     */
+    public isSelfLoop(newState: T): boolean {
+        let transition = this.getTransition(newState);
+        return !transition && newState != null && newState != undefined && newState == this._state;
+    }
+
+    /**
      * Changes the state of the machine 
      * @param transition The transition that eventually contains the hooks to invoke
      * @param newState The new state to reach
      * @param options The options to ignore hooks or events
      */
     private async _transit(transition: Transition<T>, newState: T, options?: TransitOptions): Promise<boolean> {
-
-        // TODO: refactor this method (KISS)
 
         if (newState == null || newState == undefined)
             throw new Error("Cannot transit to invalid state!");
@@ -368,7 +378,7 @@ export class TypedStateMachine<T> {
             .fireIf(options.fireEvents);
 
         if (options.invokeHooks) {
-            let canProceed = await this.triggerHooks(this._state, StateHookType.OnBeforeLeave);
+            let canProceed = await this.invokeHook(this._state, StateHookType.OnBeforeLeave);
             if (!options.ignoreHooksResults && !canProceed)
                 return false;
         }
@@ -386,13 +396,13 @@ export class TypedStateMachine<T> {
         this._state = undefined;
 
         if (options.invokeHooks) {
-            let canProceed = await this.triggerHooks(oldState, StateHookType.OnAfterLeave);
+            let canProceed = await this.invokeHook(oldState, StateHookType.OnAfterLeave);
             if (!options.ignoreHooksResults && !canProceed)
                 return false;
         }
 
         if (options.invokeHooks) {
-            let canProceed = await this.triggerHooks(newState, StateHookType.OnBeforeEnter);
+            let canProceed = await this.invokeHook(newState, StateHookType.OnBeforeEnter);
             if (!options.ignoreHooksResults && !canProceed)
                 return false;
         }
@@ -408,7 +418,7 @@ export class TypedStateMachine<T> {
             .fireIf(options.fireEvents);
 
         if (options.invokeHooks) {
-            let canProceed = await this.triggerHooks(this._state, StateHookType.OnAfterEnter);
+            let canProceed = await this.invokeHook(this._state, StateHookType.OnAfterEnter);
             if (!options.ignoreHooksResults && !canProceed)
                 return false;
         }

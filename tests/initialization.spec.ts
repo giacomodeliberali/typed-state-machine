@@ -51,7 +51,7 @@ const onBeforeEveryTransitionMock = jest.fn();
 
 // initial state specific hooks
 const onBeforeState_A_Enter = jest.fn().mockReturnValue(true); // return true to allow entering in that state
-const onAfterState_A_Enter = jest.fn();
+const onAfterState_A_Enter = jest.fn().mockReturnValue(true); // return true to allow leaving in that state;
 
 // initialize a new TypedStateMachine
 beforeEach(async () => {
@@ -128,6 +128,88 @@ describe("TypedStateMachine initialization", () => {
         expect(lTsm.getAllTransitions()).toEqual([]);
 
         expect(lTsm.getAllStates()).toEqual([]);
+
+    });
+
+    it("Should throw if initialize() is called multiple times", () => {
+        expect(tsm.initialize()).rejects.toThrowError();
+    });
+
+    it("Should throw if OnBeforeEnter in initial state return falsy values", () => {
+        const lTsm = new TypedStateMachine({
+            initialState: 0,
+            transitions: [],
+            hooks: [
+                {
+                    state: 0,
+                    handlers: [
+                        {
+                            hookType: StateHookType.OnBeforeEnter,
+                            handler: jest.fn().mockReturnValue(false)
+                        }
+                    ]
+                }
+            ]
+        });
+
+        expect(lTsm.initialize()).rejects.toThrow();
+
+        lTsm.updateConfig({
+            hooks: [
+                {
+                    state: 0,
+                    handlers: [
+                        {
+                            hookType: StateHookType.OnBeforeEnter,
+                            handler: jest.fn().mockReturnValue(Promise.resolve(false))
+                        }
+                    ]
+                }
+            ]
+        });
+
+        expect(lTsm.initialize()).rejects.toThrow();
+
+        lTsm.updateConfig({
+            hooks: [
+                {
+                    state: 0,
+                    handlers: [
+                        {
+                            hookType: StateHookType.OnBeforeEnter,
+                            handler: jest.fn().mockReturnValue(true)
+                        }
+                    ]
+                }
+            ]
+        });
+
+        expect(lTsm.initialize()).resolves.not.toThrow();
+
+    });
+
+    it("Should log a warning if OnAfterEnter in initial state return falsy values", async () => {
+        const lTsm = new TypedStateMachine({
+            initialState: 0,
+            transitions: [],
+            hooks: [
+                {
+                    state: 0,
+                    handlers: [
+                        {
+                            hookType: StateHookType.OnAfterEnter,
+                            handler: jest.fn().mockReturnValue(false)
+                        }
+                    ]
+                }
+            ]
+        });
+
+        const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => { });
+
+        expect(warnSpy).toHaveBeenCalledTimes(0);
+        await lTsm.initialize();
+        expect(warnSpy).toHaveBeenCalledTimes(1);
 
     });
 
