@@ -1,6 +1,6 @@
-import { State } from "./state.model";
-import { StateHookType } from "./state-lifecycle-hook-type.enum";
-import { TypedStateMachine } from "../typed-state-machine";
+import { StateInfo } from "./state-info.model";
+import { StateHookType } from "../enums/state-lifecycle-hook-type.enum";
+import { HookHandler } from "../types/hook-handler.type";
 
 /**
  * The public APIs of the TypedStateMachine
@@ -15,7 +15,7 @@ export interface ITypedStateMachine<T> {
     /**
      * Return all the states involved at least in one transition
      */
-    getAllStates(): Array<State<T>>;
+    getAllStates(): Array<StateInfo<T>>;
 
     /**
      * Return true if a transition exist from the current state to the new state, false otherwise
@@ -111,6 +111,6 @@ export interface ITypedStateMachine<T> {
      * @param hookType The hook type
      * @param handler The executed handler
      */
-    bindHook(applyTo: T | Array<T>, hookType: StateHookType | Array<StateHookType>, handler: (tsm: TypedStateMachine<T>) => boolean | Promise<boolean>): void;
+    bindHookHandler(applyTo: T | Array<T>, hookType: StateHookType, handler: HookHandler<T>): void;
 
 }
