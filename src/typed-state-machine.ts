@@ -1,10 +1,11 @@
 import { Transition } from "./models/transition.model";
-import { StateHookType } from "./models/state-lifecycle-hook-type.enum";
-import { HookFunction } from "./models/hook-function.model";
-import { State } from "./models/state.model";
+import { StateHookType } from "./enums/state-lifecycle-hook-type.enum";
+import { StateHookBinding } from "./models/state-hook-binding.model";
+import { StateInfo } from "./models/state-info.model";
 import { TypedStateMachineConfig } from "./models/typed-state-machine-config.interface";
 import { TransitOptions } from "./models/transit-options.interface";
 import { EventsBuilder } from "./helpers/events-builder.helper";
+import { HookHandler } from "./types/hook-handler.type";
 
 /**
  * A strongly typed state machine inspired by finite-state-machine
@@ -15,6 +16,15 @@ export class TypedStateMachine<T> {
      * The current internal state
      */
     private _state: T;
+
+    /**
+     * Indicate is a transition is pending
+     */
+    private _isTransitionPending: boolean;
+
+    public isPending() {
+        return this._isTransitionPending;
+    }
 
     /**
      * The initial configuration
@@ -36,9 +46,9 @@ export class TypedStateMachine<T> {
     private _isInitialized: boolean;
 
     /**
-     * Returns the current machine configuration
+     * Return the current configuration of the machine
      */
-    public get config() {
+    public getConfig() {
         return Object.assign({}, this._config);
     }
 
@@ -88,7 +98,7 @@ export class TypedStateMachine<T> {
     /**
      * Initialize the machine with the initial state and invokes the registered hooks
      */
-    public async initialize(options?: TransitOptions) {
+    public async initializeAsync(options?: TransitOptions): Promise<TypedStateMachine<T>> {
 
         if (this._isInitialized)
             throw new Error("The machine is already initialized and cannot be reinitialized twice.");
@@ -97,22 +107,22 @@ export class TypedStateMachine<T> {
         options = Object.assign({}, this._defaultTransitOptions, options || {});
 
         EventsBuilder
-            .bind(this.config.onBeforeEveryTransition)
-            .toArgs([this])
+            .bind(this._config.onBeforeEveryTransition)
+            .toArgs(this)
             .fireIf(options.fireEvents);
 
         if (options.invokeHooks) {
             const canProceed = await this.invokeHook(this._config.initialState, StateHookType.OnBeforeEnter);
             if (!canProceed && !options.ignoreHooksResults)
-                throw new Error(`The hook ${StateHookType[StateHookType.OnBeforeEnter]} of state ${this.config.initialState} returned value "${canProceed}", that prevented the machine to be initialized properly. This value should be "true | Promise<true>"`);
+                throw new Error(`The hook ${StateHookType[StateHookType.OnBeforeEnter]} of state ${this._config.initialState} returned value "${canProceed}", that prevented the machine to be initialized properly. This value should be "true | Promise<true>"`);
         }
 
         // set initial state
         this._state = this._config.initialState;
 
         EventsBuilder
-            .bind(this.config.onStateEnter)
-            .toArgs([this, this.config.initialState])
+            .bind(this._config.onStateEnter)
+            .toArgs(this, this._config.initialState)
             .fireIf(options.fireEvents);
 
 
@@ -123,9 +133,11 @@ export class TypedStateMachine<T> {
         }
 
         EventsBuilder
-            .bind(this.config.onAfterEveryTransition)
-            .toArgs([this])
+            .bind(this._config.onAfterEveryTransition)
+            .toArgs(this)
             .fireIf(options.fireEvents);
+
+        this._isTransitionPending = false;
 
         // mark as initialized
         this._isInitialized = true;
@@ -134,22 +146,38 @@ export class TypedStateMachine<T> {
     }
 
     /**
-     * Return the current configuration of the machine
+     * Mark the _isTransitionPending to true
      */
-    public getConfig() {
-        return Object.assign({}, this._config);
+    private _beginTransition() {
+        this._isTransitionPending = true;
     }
 
-    private checkInitialization() {
+    /**
+     * Mark the _isTransitionPending to false
+     */
+    private _endTransition() {
+        this._isTransitionPending = false;
+    }
+
+    /**
+     * Throw if this instance is not initialized
+     */
+    private throwIfNotInitialized() {
         if (!this._isInitialized)
             throw new Error("The machine has not been initialized yet. After construction enure initialize() has been called before any other operation.");
     }
 
     /**
-     * Return the current internal state of the machine
+     * Return the current internal state of the machine.
+     * 
+     * Throws an error if there is a pending transition
      */
     public getState(): T {
-        this.checkInitialization();
+        this.throwIfNotInitialized();
+
+        if (this._isTransitionPending)
+            throw new Error("A transition is pending. Before getting the state await his completeness");
+
         return this._state;
     }
 
@@ -157,7 +185,7 @@ export class TypedStateMachine<T> {
      * Return all the current transition functions
      */
     public getAllTransitions(): Array<Transition<T>> {
-        this.checkInitialization();
+        this.throwIfNotInitialized();
         return this._config.transitions.slice();
     }
 
@@ -165,7 +193,7 @@ export class TypedStateMachine<T> {
      * Returns the states that are reachable from the current state
      */
     public getNextStates(): Array<T> {
-        this.checkInitialization();
+        this.throwIfNotInitialized();
         return this.getAllStates()
             .filter(s => s.reachable)
             .map(s => s.state);
@@ -175,19 +203,19 @@ export class TypedStateMachine<T> {
      * Return all the state of the machine with an extra indicator
      * that indicates if they are reachable from current state
      */
-    public getAllStates(): Array<State<T>> {
+    public getAllStates(): Array<StateInfo<T>> {
 
-        this.checkInitialization();
+        this.throwIfNotInitialized();
 
         // TODO: refactor this ugly code
 
-        const states = new Map<T, State<T>>();
+        const states = new Map<T, StateInfo<T>>();
         this._config.transitions.forEach(transition => {
             if (Array.isArray(transition.from)) {
                 transition.from.forEach(from => {
                     const existing = states.has(from) ? states.get(from) : null;
                     const reachable = existing ? existing.reachable : false;
-                    states.set(from, new State({
+                    states.set(from, new StateInfo({
                         state: from,
                         reachable: reachable || this.can(from),
                         current: from == this.getState()
@@ -196,7 +224,7 @@ export class TypedStateMachine<T> {
             } else {
                 const existing = states.has(transition.from) ? states.get(transition.from) : null;
                 const reachable = existing ? existing.reachable : false;
-                states.set(transition.from, new State({
+                states.set(transition.from, new StateInfo({
                     state: transition.from,
                     reachable: reachable || this.can(transition.from),
                     current: transition.from == this.getState()
@@ -207,7 +235,7 @@ export class TypedStateMachine<T> {
                 transition.to.forEach(to => {
                     const existing = states.has(to) ? states.get(to) : null;
                     const reachable = existing ? existing.reachable : false;
-                    states.set(to, new State({
+                    states.set(to, new StateInfo({
                         state: to,
                         reachable: reachable || this.can(to),
                         current: to == this.getState()
@@ -216,7 +244,7 @@ export class TypedStateMachine<T> {
             } else {
                 const existing = states.has(transition.to) ? states.get(transition.to) : null;
                 const reachable = existing ? existing.reachable : false;
-                states.set(transition.to, new State({
+                states.set(transition.to, new StateInfo({
                     state: transition.to,
                     reachable: reachable || this.can(transition.to),
                     current: transition.to == this.getState()
@@ -231,7 +259,7 @@ export class TypedStateMachine<T> {
      * @param targetState The state of which you want to execute the hook
      * @param hookType The hook type that you want to execute
      */
-    private async invokeHook(targetState: T, hookType: StateHookType): Promise<boolean> {
+    private invokeHook(targetState: T, hookType: StateHookType) {
 
         const stateHooks = this._config.hooks
             .find(configuredHook => configuredHook.state == targetState);
@@ -256,11 +284,11 @@ export class TypedStateMachine<T> {
      * 
      * @param transitionName The target transition name
      */
-    public async transitByName(transitionName: string, options?: TransitOptions): Promise<boolean> {
+    public async transitByNameAsync(transitionName: string, options?: TransitOptions): Promise<boolean> {
 
-        this.checkInitialization();
+        this.throwIfNotInitialized();
 
-        const transitions = this.config.transitions.filter(t => t.name == transitionName);
+        const transitions = this._config.transitions.filter(t => t.name == transitionName);
 
         if (!transitions || transitions.length == 0)
             throw new Error("The supplied transition name does not exist");
@@ -279,10 +307,10 @@ export class TypedStateMachine<T> {
         if (!targetTransition) {
             EventsBuilder
                 .bind(this._config.onInvalidTransition)
-                .toArgs([this, this._state, undefined])
+                .toArgs(this, this._state, undefined)
                 .fireIf(options.fireEvents);
 
-            return Promise.resolve(false);
+            return false;
         }
 
         let newState: T = null;
@@ -295,7 +323,7 @@ export class TypedStateMachine<T> {
             newState = targetTransition.to;
         }
 
-        return this._transit(targetTransition, newState);
+        return this._transitAsync(targetTransition, newState);
     }
 
     /**
@@ -317,9 +345,9 @@ export class TypedStateMachine<T> {
      * During this transition all life cycles events will be triggered.
      * @param newState The destination state
      */
-    public async transit(newState: T): Promise<boolean> {
+    public async transitAsync(newState: T): Promise<boolean> {
 
-        this.checkInitialization();
+        this.throwIfNotInitialized();
 
         let transition = this.getTransition(newState);
 
@@ -331,7 +359,7 @@ export class TypedStateMachine<T> {
             })
         }
 
-        return this._transit(transition, newState);
+        return this._transitAsync(transition, newState);
     }
 
     /**
@@ -349,10 +377,17 @@ export class TypedStateMachine<T> {
      * @param newState The new state to reach
      * @param options The options to ignore hooks or events
      */
-    private async _transit(transition: Transition<T>, newState: T, options?: TransitOptions): Promise<boolean> {
+    private async _transitAsync(transition: Transition<T>, newState: T, options?: TransitOptions): Promise<boolean> {
 
         if (newState == null || newState == undefined)
             throw new Error("Cannot transit to invalid state!");
+
+
+        if (this._isTransitionPending)
+            throw new Error("A transition is pending");
+
+
+        this._beginTransition();
 
         // ensure correct options
         options = Object.assign({}, this._defaultTransitOptions, options || {});
@@ -360,35 +395,38 @@ export class TypedStateMachine<T> {
         if (!transition) {
             // fire onInvalidTransition
             EventsBuilder
-                .bind(this.config.onInvalidTransition)
-                .toArgs([this, this._state, newState])
+                .bind(this._config.onInvalidTransition)
+                .toArgs(this, this._state, newState)
                 .fireIf(options.fireEvents);
 
+            this._endTransition();
             return false;
         }
 
         // fire onBeforeEveryTransition
         EventsBuilder
             .bind(this._config.onBeforeEveryTransition)
-            .toArgs([this])
+            .toArgs(this)
             .fireIf(options.fireEvents);
 
         // fire onBeforeTransition
         EventsBuilder
             .bind(transition.onBeforeTransition)
-            .toArgs([this])
+            .toArgs(this)
             .fireIf(options.fireEvents);
 
         if (options.invokeHooks) {
             let canProceed = await this.invokeHook(this._state, StateHookType.OnBeforeLeave);
-            if (!options.ignoreHooksResults && !canProceed)
+            if (!options.ignoreHooksResults && !canProceed) {
+                this._endTransition();
                 return false;
+            }
         }
 
         // fire onStateLeave
         EventsBuilder
             .bind(this._config.onStateLeave)
-            .toArgs([this, this._state])
+            .toArgs(this, this._state)
             .fireIf(options.fireEvents);
 
         // just left old status
@@ -399,14 +437,18 @@ export class TypedStateMachine<T> {
 
         if (options.invokeHooks) {
             let canProceed = await this.invokeHook(oldState, StateHookType.OnAfterLeave);
-            if (!options.ignoreHooksResults && !canProceed)
+            if (!options.ignoreHooksResults && !canProceed) {
+                this._endTransition();
                 return false;
+            }
         }
 
         if (options.invokeHooks) {
             let canProceed = await this.invokeHook(newState, StateHookType.OnBeforeEnter);
-            if (!options.ignoreHooksResults && !canProceed)
+            if (!options.ignoreHooksResults && !canProceed) {
+                this._endTransition();
                 return false;
+            }
         }
 
         // update the state
@@ -416,26 +458,30 @@ export class TypedStateMachine<T> {
         // fire onStateEnter
         EventsBuilder
             .bind(this._config.onStateEnter)
-            .toArgs([this, this._state])
+            .toArgs(this, this._state)
             .fireIf(options.fireEvents);
 
         if (options.invokeHooks) {
             let canProceed = await this.invokeHook(this._state, StateHookType.OnAfterEnter);
-            if (!options.ignoreHooksResults && !canProceed)
+            if (!options.ignoreHooksResults && !canProceed) {
+                this._endTransition();
                 return false;
+            }
         }
 
         // fire onAfterTransition
         EventsBuilder
             .bind(transition.onAfterTransition)
-            .toArgs([this])
+            .toArgs(this)
             .fireIf(options.fireEvents);
 
         // fire onAfterEveryTransition
         EventsBuilder
-            .bind(this.config.onAfterEveryTransition)
-            .toArgs([this])
+            .bind(this._config.onAfterEveryTransition)
+            .toArgs(this)
             .fireIf(options.fireEvents);
+
+        this._endTransition();
 
         return true;
     }
@@ -487,7 +533,7 @@ export class TypedStateMachine<T> {
      */
     public can(newState: T): boolean {
 
-        this.checkInitialization();
+        this.throwIfNotInitialized();
 
         if (this._config.canSelfLoop && newState == this.getState())
             return true;
@@ -502,9 +548,9 @@ export class TypedStateMachine<T> {
      * 
      * @param newState The destination state
      */
-    public async goto(newState: T): Promise<void> {
+    public async gotoAsync(newState: T): Promise<void> {
 
-        this.checkInitialization();
+        this.throwIfNotInitialized();
 
         let transition = this.getTransition(newState);
 
@@ -516,9 +562,42 @@ export class TypedStateMachine<T> {
             })
         }
 
-        await this._transit(transition, newState, {
+        await this._transitAsync(transition, newState, {
             ignoreHooksResults: true
         });
 
     }
+
+    /*     public bindHook(applyTo: T | T[], hookType: StateHookType, handler: HookHandler<T>): void {
+    
+            this._config.hooks = this._config.hooks || [];
+    
+            const states = Array.isArray(applyTo) ? applyTo : [applyTo];
+    
+            states.forEach(state => {
+                const existState = this._config.hooks.find(h => h.state == state);
+                if (existState) {
+                    existState.handlers = existState.handlers || [];
+                    const existHook = existState.handlers.find(h => h.hookType == hookType);
+                    if (existHook)
+                        existHook.handler = handler;
+                    else
+                        existState.handlers.push({
+                            hookType: hookType,
+                            handler: handler
+                        });
+                } else {
+                    this._config.hooks.push({
+                        state: state,
+                        handlers: [
+                            {
+                                hookType: hookType,
+                                handler: handler
+                            }
+                        ]
+                    });
+                }
+            });
+    
+        } */
 }

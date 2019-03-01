@@ -1,8 +1,9 @@
 import { Transition } from "../src/models/transition.model";
 import { TypedStateMachine } from "../src/typed-state-machine";
 import { LiteralEnum } from "./my-enum.enum";
-import { StateHookType } from "../src/models/state-lifecycle-hook-type.enum";
-import { State } from "../src/models/state.model";
+import { StateHookType } from "../src/enums/state-lifecycle-hook-type.enum";
+import { StateInfo } from "../src/models/state-info.model";
+import { StateHookConfig } from "../src/models/state-hook-config.model";
 
 /**
  * The typed machine under test
@@ -81,7 +82,7 @@ beforeEach(async () => {
                 ]
             }
         ]
-    }).initialize();
+    }).initializeAsync();
 });
 
 describe("TypedStateMachine initialization", () => {
@@ -123,7 +124,7 @@ describe("TypedStateMachine initialization", () => {
 
         expect(() => lTsm.getAllTransitions()).toThrowError(); // missing initialization
 
-        await lTsm.initialize();
+        await lTsm.initializeAsync();
 
         expect(lTsm.getAllTransitions()).toEqual([]);
 
@@ -132,7 +133,49 @@ describe("TypedStateMachine initialization", () => {
     });
 
     it("Should throw if initialize() is called multiple times", () => {
-        expect(tsm.initialize()).rejects.toThrowError();
+        expect(tsm.initializeAsync()).rejects.toThrowError();
+    });
+
+    it("Should throw if a transition is pending and another one is requested", async (done) => {
+        const lTsm = await new TypedStateMachine({
+            initialState: LiteralEnum.A,
+            transitions: [
+                new Transition({
+                    from: LiteralEnum.A,
+                    to: LiteralEnum.B
+                }),
+                new Transition({
+                    from: LiteralEnum.B,
+                    to: LiteralEnum.C
+                })
+            ],
+            hooks: [
+                {
+                    state: LiteralEnum.A,
+                    handlers: [
+                        {
+                            hookType: StateHookType.OnBeforeLeave,
+                            handler: () => {
+                                return new Promise((resolve, reject) => {
+                                    setTimeout(() => {
+                                        resolve(true);
+                                    }, 300);
+                                });
+                            }
+                        }
+                    ]
+                }
+            ]
+        }).initializeAsync();
+
+        const transition = lTsm.transitAsync(LiteralEnum.B);
+        expect(() => lTsm.getState()).toThrowError();
+        expect(lTsm.isPending()).toBe(true);
+
+        expect(lTsm.transitAsync(LiteralEnum.C)).rejects.toThrowError(/pending/)
+
+        await transition;
+        done();
     });
 
     it("Should throw if OnBeforeEnter in initial state return falsy values", () => {
@@ -152,7 +195,7 @@ describe("TypedStateMachine initialization", () => {
             ]
         });
 
-        expect(lTsm.initialize()).rejects.toThrow();
+        expect(lTsm.initializeAsync()).rejects.toThrow();
 
         lTsm.updateConfig({
             hooks: [
@@ -168,7 +211,7 @@ describe("TypedStateMachine initialization", () => {
             ]
         });
 
-        expect(lTsm.initialize()).rejects.toThrow();
+        expect(lTsm.initializeAsync()).rejects.toThrow();
 
         lTsm.updateConfig({
             hooks: [
@@ -184,7 +227,7 @@ describe("TypedStateMachine initialization", () => {
             ]
         });
 
-        expect(lTsm.initialize()).resolves.not.toThrow();
+        expect(lTsm.initializeAsync()).resolves.not.toThrow();
 
     });
 
@@ -208,7 +251,7 @@ describe("TypedStateMachine initialization", () => {
         const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => { });
 
         expect(warnSpy).toHaveBeenCalledTimes(0);
-        await lTsm.initialize();
+        await lTsm.initializeAsync();
         expect(warnSpy).toHaveBeenCalledTimes(1);
 
     });
@@ -262,9 +305,9 @@ describe("TypedStateMachine initialization", () => {
     it("Should throw an error if a falsy state is requested", async () => {
         expect(tsm.getState()).toBe(LiteralEnum.A);
 
-        expect(tsm.transit(undefined)).rejects.toThrowError();
-        expect(tsm.transit(null)).rejects.toThrowError();
-        expect(tsm.transit(0 as any)).resolves.toEqual(false);
+        expect(tsm.transitAsync(undefined)).rejects.toThrowError();
+        expect(tsm.transitAsync(null)).rejects.toThrowError();
+        expect(tsm.transitAsync(0 as any)).resolves.toEqual(false);
     });
 });
 
@@ -310,42 +353,42 @@ describe("TypedStateMachine initial states", () => {
             current: true,
             reachable: false,
             state: LiteralEnum.A
-        } as State<LiteralEnum>);
+        } as StateInfo<LiteralEnum>);
 
         // B
         expect(states[1]).toEqual({
             current: false,
             reachable: true,
             state: LiteralEnum.B
-        } as State<LiteralEnum>);
+        } as StateInfo<LiteralEnum>);
 
         // C
         expect(states[2]).toEqual({
             current: false,
             reachable: true,
             state: LiteralEnum.C
-        } as State<LiteralEnum>);
+        } as StateInfo<LiteralEnum>);
 
         // D
         expect(states[3]).toEqual({
             current: false,
             reachable: true,
             state: LiteralEnum.D
-        } as State<LiteralEnum>);
+        } as StateInfo<LiteralEnum>);
 
         // E
         expect(states[4]).toEqual({
             current: false,
             reachable: true,
             state: LiteralEnum.E
-        } as State<LiteralEnum>);
+        } as StateInfo<LiteralEnum>);
 
         // F
         expect(states[5]).toEqual({
             current: false,
             reachable: false,
             state: LiteralEnum.F
-        } as State<LiteralEnum>);
+        } as StateInfo<LiteralEnum>);
     });
 
     it("Should have return correct next states", () => {
@@ -371,13 +414,13 @@ describe("TypedStateMachine initial states", () => {
 
     it("Should fallback to false canSelfLoop", () => {
 
-        expect(tsm.config.canSelfLoop).toEqual(false);
+        expect(tsm.getConfig().canSelfLoop).toEqual(false);
 
         tsm.updateConfig({
             canSelfLoop: true
         });
 
-        expect(tsm.config.canSelfLoop).toEqual(true);
+        expect(tsm.getConfig().canSelfLoop).toEqual(true);
     });
 
     it("Should support multiple from and multiple to", async () => {
@@ -400,11 +443,11 @@ describe("TypedStateMachine initial states", () => {
 
         expect(tsm.getState()).toEqual(LiteralEnum.A);
 
-        await tsm.transit(LiteralEnum.B);
+        await tsm.transitAsync(LiteralEnum.B);
 
         expect(tsm.getState()).toEqual(LiteralEnum.B);
 
-        await tsm.transit(LiteralEnum.E);
+        await tsm.transitAsync(LiteralEnum.E);
 
         expect(tsm.getState()).toEqual(LiteralEnum.E);
 
@@ -435,11 +478,11 @@ describe("TypedStateMachine initial states", () => {
 
         expect(tsm.getState()).toEqual(LiteralEnum.A);
 
-        await tsm.transit(LiteralEnum.B);
+        await tsm.transitAsync(LiteralEnum.B);
 
         expect(tsm.getState()).toEqual(LiteralEnum.B);
 
-        await tsm.transit(LiteralEnum.E);
+        await tsm.transitAsync(LiteralEnum.E);
 
         expect(tsm.getState()).toEqual(LiteralEnum.E);
 

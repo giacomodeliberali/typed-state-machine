@@ -1,7 +1,7 @@
 import { ThreadStateType } from "./thread-state-type.enum";
 import { TypedStateMachine } from "../src/typed-state-machine";
 import { Transition } from "../src/models/transition.model";
-import { StateHookType } from "../src/models/state-lifecycle-hook-type.enum";
+import { StateHookType } from "../src/enums/state-lifecycle-hook-type.enum";
 
 /**
  * The typed machine under test
@@ -106,7 +106,7 @@ beforeEach(async () => {
                 ]
             }
         ]
-    }).initialize();
+    }).initializeAsync();
 });
 
 describe("TypedStateMachine state hooks", () => {
@@ -135,7 +135,7 @@ describe("TypedStateMachine state hooks", () => {
 
         expect(tsm.can(ThreadStateType.New)).toBe(false);
 
-        const success = await tsm.transit(ThreadStateType.New);
+        const success = await tsm.transitAsync(ThreadStateType.New);
 
         expect(success).toBe(false);
         expect(tsm.getState()).toBe(ThreadStateType.New);
@@ -168,7 +168,7 @@ describe("TypedStateMachine state hooks", () => {
 
         jest.clearAllMocks();
 
-        await tsm.transit(ThreadStateType.New);
+        await tsm.transitAsync(ThreadStateType.New);
 
         expect(tsm.getState()).toBe(ThreadStateType.New);
 
@@ -185,15 +185,15 @@ describe("TypedStateMachine state hooks", () => {
     it("Should respect given transitions", async () => {
         expect(tsm.getState()).toBe(ThreadStateType.New);
 
-        let success = await tsm.transit(ThreadStateType.Waiting);
+        let success = await tsm.transitAsync(ThreadStateType.Waiting);
         expect(success).toBe(false);
         expect(tsm.getState()).toBe(ThreadStateType.New);
 
-        success = await tsm.transit(ThreadStateType.Running);
+        success = await tsm.transitAsync(ThreadStateType.Running);
         expect(success).toBe(false);
         expect(tsm.getState()).toBe(ThreadStateType.New);
 
-        success = await tsm.transit(ThreadStateType.Terminated);
+        success = await tsm.transitAsync(ThreadStateType.Terminated);
         expect(success).toBe(false);
         expect(tsm.getState()).toBe(ThreadStateType.New);
 
@@ -202,7 +202,7 @@ describe("TypedStateMachine state hooks", () => {
         ]);
 
         // first valid transition
-        success = await tsm.transit(ThreadStateType.Ready);
+        success = await tsm.transitAsync(ThreadStateType.Ready);
         expect(success).toBe(true);
         expect(tsm.getState()).toBe(ThreadStateType.Ready);
         expect(tsm.getNextStates()).toEqual([
@@ -212,7 +212,7 @@ describe("TypedStateMachine state hooks", () => {
         expect(onAfterTransition_New2Ready).toHaveBeenCalledTimes(1);
 
 
-        success = await tsm.transit(ThreadStateType.Running);
+        success = await tsm.transitAsync(ThreadStateType.Running);
         expect(success).toBe(true);
         expect(tsm.getState()).toBe(ThreadStateType.Running);
         expect(tsm.getNextStates()).toEqual([
@@ -220,7 +220,7 @@ describe("TypedStateMachine state hooks", () => {
             ThreadStateType.Terminated
         ]);
 
-        success = await tsm.transit(ThreadStateType.Waiting);
+        success = await tsm.transitAsync(ThreadStateType.Waiting);
         expect(success).toBe(true);
         expect(tsm.getState()).toBe(ThreadStateType.Waiting);
         expect(tsm.getNextStates()).toEqual([
@@ -232,7 +232,7 @@ describe("TypedStateMachine state hooks", () => {
 
         expect(tsm.can(ThreadStateType.Ready)).toBe(true);
 
-        let success = await tsm.transit(ThreadStateType.Ready);
+        let success = await tsm.transitAsync(ThreadStateType.Ready);
         expect(success).toBe(true);
         expect(tsm.getState()).toBe(ThreadStateType.Ready);
 
@@ -242,7 +242,7 @@ describe("TypedStateMachine state hooks", () => {
         onBeforeState_Ready_Enter.mockReturnValue(false);
 
         //TODO: in this case, the state should be brang back to the previous value or left undefined?
-        success = await tsm.transit(ThreadStateType.Ready);
+        success = await tsm.transitAsync(ThreadStateType.Ready);
         expect(success).toBe(false);
         expect(tsm.getState()).not.toBeDefined();
 
@@ -253,7 +253,7 @@ describe("TypedStateMachine state hooks", () => {
 
         expect(onInvalidTransitionMock).not.toHaveBeenCalled();
 
-        await tsm.transit(ThreadStateType.Terminated);
+        await tsm.transitAsync(ThreadStateType.Terminated);
 
         expect(onInvalidTransitionMock).toHaveBeenCalledTimes(1);
     });
@@ -281,7 +281,7 @@ describe("Hooks: OnBeforeEnter", () => {
 
         expect(tsm.getState()).toBe(ThreadStateType.New);
 
-        await tsm.transit(ThreadStateType.Ready);
+        await tsm.transitAsync(ThreadStateType.Ready);
 
         expect(tsm.getState()).not.toBeDefined()
 
@@ -307,7 +307,7 @@ describe("Hooks: OnBeforeEnter", () => {
 
         expect(tsm.getState()).toBe(ThreadStateType.New);
 
-        await tsm.transit(ThreadStateType.Ready);
+        await tsm.transitAsync(ThreadStateType.Ready);
 
         expect(tsm.getState()).not.toBeDefined()
 
@@ -335,7 +335,7 @@ describe("Hooks: OnBeforeLeave", () => {
 
         expect(tsm.getState()).toBe(ThreadStateType.New);
 
-        await tsm.transit(ThreadStateType.Ready);
+        await tsm.transitAsync(ThreadStateType.Ready);
 
         expect(tsm.getState()).toBe(ThreadStateType.New);
 
@@ -361,7 +361,7 @@ describe("Hooks: OnBeforeLeave", () => {
 
         expect(tsm.getState()).toBe(ThreadStateType.New);
 
-        await tsm.transit(ThreadStateType.Ready);
+        await tsm.transitAsync(ThreadStateType.Ready);
 
         expect(tsm.getState()).toBe(ThreadStateType.New);
 
@@ -389,7 +389,7 @@ describe("Hooks: OnAfterLeave", () => {
 
         expect(tsm.getState()).toBe(ThreadStateType.New);
 
-        await tsm.transit(ThreadStateType.Ready);
+        await tsm.transitAsync(ThreadStateType.Ready);
 
         expect(tsm.getState()).not.toBeDefined()
 
@@ -415,7 +415,7 @@ describe("Hooks: OnAfterLeave", () => {
 
         expect(tsm.getState()).toBe(ThreadStateType.New);
 
-        await tsm.transit(ThreadStateType.Ready);
+        await tsm.transitAsync(ThreadStateType.Ready);
 
         expect(tsm.getState()).not.toBeDefined()
 
@@ -443,7 +443,7 @@ describe("Hooks: OnAfterEnter", () => {
 
         expect(tsm.getState()).toBe(ThreadStateType.New);
 
-        await tsm.transit(ThreadStateType.Ready);
+        await tsm.transitAsync(ThreadStateType.Ready);
 
         expect(tsm.getState()).toBe(ThreadStateType.Ready);
 
@@ -470,7 +470,7 @@ describe("Hooks: OnAfterEnter", () => {
 
         expect(tsm.getState()).toBe(ThreadStateType.New);
 
-        await tsm.transit(ThreadStateType.Ready);
+        await tsm.transitAsync(ThreadStateType.Ready);
 
         expect(tsm.getState()).toBe(ThreadStateType.Ready);
 
@@ -520,7 +520,7 @@ describe("Goto method life cycles", () => {
 
         expect(tsm.getState()).toBe(ThreadStateType.New);
 
-        await tsm.goto(ThreadStateType.Terminated);
+        await tsm.gotoAsync(ThreadStateType.Terminated);
 
         expect(tsm.getState()).toBe(ThreadStateType.Terminated);
 
@@ -556,7 +556,7 @@ describe("Goto method life cycles", () => {
 
         expect(tsm.getState()).toBe(ThreadStateType.New);
 
-        await tsm.goto(ThreadStateType.Terminated);
+        await tsm.gotoAsync(ThreadStateType.Terminated);
 
         expect(tsm.getState()).toBe(ThreadStateType.Terminated);
 

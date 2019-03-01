@@ -54,7 +54,7 @@ beforeEach(async () => {
     tsm = await new TypedStateMachine({
         initialState: LiteralEnum.A,
         transitions: transitions
-    }).initialize();
+    }).initializeAsync();
 });
 
 describe("TypedStateMachine minimal initialization (no hooks and events)", () => {
@@ -69,7 +69,7 @@ describe("TypedStateMachine minimal initialization (no hooks and events)", () =>
 
         expect(tsm.getState()).toEqual(LiteralEnum.A);
 
-        await tsm.transit(LiteralEnum.C); // valid
+        await tsm.transitAsync(LiteralEnum.C); // valid
 
         expect(tsm.getState()).toEqual(LiteralEnum.C);
 
@@ -79,7 +79,7 @@ describe("TypedStateMachine minimal initialization (no hooks and events)", () =>
 
         expect(tsm.getState()).toEqual(LiteralEnum.A);
 
-        await tsm.transit(LiteralEnum.F); // invalid
+        await tsm.transitAsync(LiteralEnum.F); // invalid
 
         expect(tsm.getState()).toEqual(LiteralEnum.A);
 
@@ -89,7 +89,7 @@ describe("TypedStateMachine minimal initialization (no hooks and events)", () =>
 
         expect(tsm.getState()).toEqual(LiteralEnum.A);
 
-        await tsm.goto(LiteralEnum.F);
+        await tsm.gotoAsync(LiteralEnum.F);
 
         expect(tsm.getState()).toEqual(LiteralEnum.F);
 

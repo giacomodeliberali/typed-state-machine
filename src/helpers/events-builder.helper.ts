@@ -5,6 +5,10 @@ import { EventBuilderConfig } from "../models/event-builder-config.model";
  */
 export class EventsBuilder {
 
+    private constructor(){
+        // Cannot instantiate
+    }
+
     /**
      * Create a new event associated with he given handler
      * 
@@ -12,7 +16,7 @@ export class EventsBuilder {
      * 
      *     EventsBuilder
      *         .bind(config.eventHandler)
-     *         .toArgs([param1, param2])
+     *         .toArgs(param1, param2)
      *         .fireIf(condition);
      * 
      * @param eventHandler The event handler to call 

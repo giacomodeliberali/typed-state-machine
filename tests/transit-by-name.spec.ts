@@ -43,13 +43,13 @@ beforeEach(async () => {
                 name: "step_stop()"
             })
         ]
-    }).initialize();
+    }).initializeAsync();
 });
 
 describe("TypedStateMachine transitByName", () => {
 
     it("Should throw error if a invalid name is given", async () => {
-        expect(tsm.transitByName("fake_name")).rejects.toEqual(new Error("The supplied transition name does not exist"));
+        expect(tsm.transitByNameAsync("fake_name")).rejects.toEqual(new Error("The supplied transition name does not exist"));
     });
 
     it("Should pick transition that can be applied to current state", async () => {
@@ -58,31 +58,31 @@ describe("TypedStateMachine transitByName", () => {
 
         expect(tsm.getState()).toEqual(ThreadStateType.New);
 
-        await tsm.transitByName("wake_up()");
+        await tsm.transitByNameAsync("wake_up()");
 
         expect(tsm.getState()).toEqual(ThreadStateType.Ready);
 
-        await tsm.transitByName("schedule()");
+        await tsm.transitByNameAsync("schedule()");
 
         expect(tsm.getState()).toEqual(ThreadStateType.Running);
 
-        await tsm.transitByName("step_stop()");
+        await tsm.transitByNameAsync("step_stop()");
 
         expect(tsm.getState()).toEqual(ThreadStateType.Waiting);
 
-        await tsm.transitByName("wake_up()");
+        await tsm.transitByNameAsync("wake_up()");
 
         expect(tsm.getState()).toEqual(ThreadStateType.Ready);
 
-        await tsm.transitByName("schedule()");
+        await tsm.transitByNameAsync("schedule()");
 
         expect(tsm.getState()).toEqual(ThreadStateType.Running);
 
-        await tsm.transitByName("step_stop()");
+        await tsm.transitByNameAsync("step_stop()");
 
         expect(tsm.getState()).toEqual(ThreadStateType.Waiting);
 
-        await tsm.transitByName("step_stop()");
+        await tsm.transitByNameAsync("step_stop()");
 
         expect(tsm.getState()).toEqual(ThreadStateType.Terminated);
 
@@ -99,13 +99,13 @@ describe("TypedStateMachine transitByName", () => {
 
         expect(tsm.getState()).toEqual(ThreadStateType.New);
 
-        await tsm.transitByName("wake_up()");
+        await tsm.transitByNameAsync("wake_up()");
 
         expect(tsm.getState()).toEqual(ThreadStateType.Ready);
 
         expect(onInvalidTransition).not.toHaveBeenCalled();
 
-        await tsm.transitByName("wake_up()");
+        await tsm.transitByNameAsync("wake_up()");
 
         expect(onInvalidTransition).toHaveBeenCalledTimes(1);
 
@@ -113,7 +113,7 @@ describe("TypedStateMachine transitByName", () => {
             onInvalidTransition: undefined
         });
 
-        expect(await tsm.transitByName("wake_up()")).toEqual(false);
+        expect(await tsm.transitByNameAsync("wake_up()")).toEqual(false);
 
     });
 

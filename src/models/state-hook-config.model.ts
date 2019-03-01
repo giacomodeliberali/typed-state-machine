@@ -1,5 +1,5 @@
-import { StateHookType } from "./state-lifecycle-hook-type.enum";
-import { HookHandler } from "./hook-handler.type";
+import { StateHookType } from "../enums/state-lifecycle-hook-type.enum";
+import { HookHandler } from "../types/hook-handler.type";
 
 /**
  * Represent a configuration for a state hook

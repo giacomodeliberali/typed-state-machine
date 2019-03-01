@@ -1,6 +1,9 @@
 import { Transition } from "./transition.model";
 import { TypedStateMachine } from "../typed-state-machine";
-import { HookFunction } from "./hook-function.model";
+import { StateHookBinding } from "./state-hook-binding.model";
+import { GenericEventHandler } from "../types/generic-event-handler.type";
+import { TransitionEventHandler } from "../types/transition-event-handler.type";
+import { StateEventHandler } from "../types/state-event-handler.type";
 
 /**
  * The initial configuration for the machine
@@ -25,30 +28,30 @@ export interface TypedStateMachineConfig<T> {
     /**
      * The specific state hooks used to manage state life cycle events 
      */
-    hooks?: HookFunction<T>[];
+    hooks?: StateHookBinding<T>[];
 
     /**
      * Fired before any transition
      */
-    onBeforeEveryTransition?: (arg: TypedStateMachine<T>) => void;
+    onBeforeEveryTransition?: GenericEventHandler<T>;
 
     /**
      * Fired after any transition
      */
-    onAfterEveryTransition?: (arg: TypedStateMachine<T>) => void;
+    onAfterEveryTransition?: GenericEventHandler<T>;
 
     /**
      * Fired when an invalid transition is triggered from the current state
      */
-    onInvalidTransition?: (arg: TypedStateMachine<T>, from: T, to: T) => void;
+    onInvalidTransition?: TransitionEventHandler<T>;
 
     /**
      * Fired when leaving any state
      */
-    onStateLeave?: (arg: TypedStateMachine<T>, state: T) => void;
+    onStateLeave?: StateEventHandler<T>;
 
     /**
      * Fired when entering in any state
      */
-    onStateEnter?: (arg: TypedStateMachine<T>, state: T) => void;
+    onStateEnter?: StateEventHandler<T>;
 }

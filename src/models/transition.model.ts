@@ -1,4 +1,5 @@
 import { TypedStateMachine } from "../typed-state-machine";
+import { GenericEventHandler } from "../types/generic-event-handler.type";
 
 /**
  * Represent a transition function from state(s) to state(s)
@@ -23,12 +24,12 @@ export class Transition<T>{
     /**
      * Called before the transition occurs
      */
-    onBeforeTransition?: (arg: TypedStateMachine<T>) => void;
+    onBeforeTransition?: GenericEventHandler<T>;
 
     /**
      * Called after the transition occurs
      */
-    onAfterTransition?: (arg: TypedStateMachine<T>) => void;
+    onAfterTransition?: GenericEventHandler<T>;
 
     /**
      * Create a new transition function

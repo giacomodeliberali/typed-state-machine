@@ -1,7 +1,7 @@
 /**
  * A state of the machine
  */
-export class State<T> {
+export class StateInfo<T> {
     /**
      * The state
      */
@@ -21,7 +21,7 @@ export class State<T> {
      * Create a new state
      * @param item The state configuration
      */
-    constructor(item: Partial<State<T>>) {
+    constructor(item: Partial<StateInfo<T>>) {
         Object.assign(this, item);
     }
 }
