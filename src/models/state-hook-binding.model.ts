@@ -1,9 +1,9 @@
-import {StateHookConfig} from './hook-config.model';
+import {StateHookConfig} from './state-hook-config.model';
 
 /**
- * The hook that will be called for a state
+ * The binding between a state and a list of hook handlers
  */
-export class HookFunction<T>{
+export class StateHookBinding<T>{
 
     /**
      * The state for this hook
@@ -19,7 +19,7 @@ export class HookFunction<T>{
      * Create a new hook for a specific state
      * @param item The hook function configuration
      */
-    constructor(item: HookFunction<T>) {
+    constructor(item: StateHookBinding<T>) {
         Object.assign(this, item);
     }
 }

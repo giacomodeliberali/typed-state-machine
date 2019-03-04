@@ -26,7 +26,7 @@ export class EventBuilderConfig<Func extends (...args: any[]) => void> {
      * Associate the parameters with which call the handler
      * @param args The arguments with which the handler will be called
      */
-    toArgs(...args: Array<Parameters<Func>>) {
+    toArgs(...args: Parameters<Func>) {
         this.args = args;
         return this;
     }

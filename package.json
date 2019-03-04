@@ -10,7 +10,9 @@
     "test:coveralls": "jest --coverage --coverageReporters=text-lcov | coveralls",
     "start": "nodemon",
     "build": "tsc",
-    "clean": "npx rimraf dist && npx rimraf coverage"
+    "clean": "npx rimraf dist && npx rimraf coverage",
+    "docs": "npx typedoc",
+    "docs:add": "git add ./docs"
   },
   "keywords": [
     "typescript",
@@ -38,9 +40,11 @@
     "nodemon": "^1.18.10",
     "ts-jest": "^24.0.0",
     "ts-node": "^8.0.2",
+    "typedoc": "^0.14.2",
     "typescript": "^3.3.3333"
   },
   "dependencies": {
+    "pre-commit": "^1.2.2",
     "reflect-metadata": "^0.1.13",
     "rxjs": "^6.4.0"
   },
@@ -63,5 +67,9 @@
       "/.vscode/"
     ],
     "coverageDirectory": "coverage"
-  }
+  },
+  "pre-commit": [
+    "docs",
+    "docs:add"
+  ]
 }

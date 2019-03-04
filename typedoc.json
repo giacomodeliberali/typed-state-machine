@@ -1,0 +1,9 @@
+
+{
+    "name": "Typed State Machine",
+    "mode": "file",
+    "out": "docs/reference",
+    "exclude": [
+        "tests/**"
+    ]
+}
