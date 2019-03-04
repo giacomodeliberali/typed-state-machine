@@ -100,9 +100,9 @@ Please note that this project is under active development and is **not ready for
             - `await transitByNameAsync()`
             - `goto()`
             - `await gotoAsync()`
-    - [ ] Refactor `HookFunction<T>`to something more significant
-    - [ ] Consider remove `new Transition({})` in favour of `{}`like other options  
-    - [ ] Add other utility methods:
+    - [x] Refactor `HookFunction<T>`to something more significant
+    - [ ] ~~Consider remove `new Transition({})` in favour of `{}`like other options~~
+    - [x] Add other utility methods:
         ```typescript
         tsm.bindHook(StateType.A, (hookType: StateHookType) => {
             if(hookType == StateHookType.OnBeforeLeave){

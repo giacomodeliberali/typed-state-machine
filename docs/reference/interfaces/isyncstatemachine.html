@@ -89,6 +89,12 @@
 					</li>
 				</ul>
 			</section>
+			<section class="tsd-panel">
+				<h3>Implemented by</h3>
+				<ul class="tsd-hierarchy">
+					<li><a href="../classes/typedstatemachine.html" class="tsd-signature-type">TypedStateMachine</a></li>
+				</ul>
+			</section>
 			<section class="tsd-panel-group tsd-index-group">
 				<h2>Index</h2>
 				<section class="tsd-panel tsd-index-panel">
@@ -97,6 +103,7 @@
 							<h3>Methods</h3>
 							<ul class="tsd-index-list">
 								<li class="tsd-kind-method tsd-parent-kind-interface"><a href="isyncstatemachine.html#goto" class="tsd-kind-icon">goto</a></li>
+								<li class="tsd-kind-method tsd-parent-kind-interface"><a href="isyncstatemachine.html#initialize" class="tsd-kind-icon">initialize</a></li>
 								<li class="tsd-kind-method tsd-parent-kind-interface"><a href="isyncstatemachine.html#transit" class="tsd-kind-icon">transit</a></li>
 								<li class="tsd-kind-method tsd-parent-kind-interface"><a href="isyncstatemachine.html#transitbyname" class="tsd-kind-icon">transit<wbr>ByName</a></li>
 							</ul>
@@ -116,7 +123,7 @@
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in <a href="https://github.com/giacomodeliberali/typed-state-machine/blob/2b55a59/src/models/i-sync-state-machine.interface.ts#L45">models/i-sync-state-machine.interface.ts:45</a></li>
+									<li>Defined in <a href="https://github.com/giacomodeliberali/typed-state-machine/blob/827ac0d/src/models/i-sync-state-machine.interface.ts#L52">models/i-sync-state-machine.interface.ts:52</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -141,6 +148,35 @@
 					</ul>
 				</section>
 				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-interface">
+					<a name="initialize" class="tsd-anchor"></a>
+					<h3>initialize</h3>
+					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-interface">
+						<li class="tsd-signature tsd-kind-icon">initialize<span class="tsd-signature-symbol">(</span>options<span class="tsd-signature-symbol">?: </span><a href="transitoptions.html" class="tsd-signature-type">TransitOptions</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="isyncstatemachine.html" class="tsd-signature-type">ISyncStateMachine</a><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">T</span><span class="tsd-signature-symbol">&gt;</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/giacomodeliberali/typed-state-machine/blob/827ac0d/src/models/i-sync-state-machine.interface.ts#L15">models/i-sync-state-machine.interface.ts:15</a></li>
+								</ul>
+							</aside>
+							<div class="tsd-comment tsd-typography">
+								<div class="lead">
+									<p>Initialize the machine and transit to the initial state
+									invoking all registered hooks handlers</p>
+								</div>
+							</div>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> options: <a href="transitoptions.html" class="tsd-signature-type">TransitOptions</a></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <a href="isyncstatemachine.html" class="tsd-signature-type">ISyncStateMachine</a><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">T</span><span class="tsd-signature-symbol">&gt;</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-interface">
 					<a name="transit" class="tsd-anchor"></a>
 					<h3>transit</h3>
 					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-interface">
@@ -150,7 +186,7 @@
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in <a href="https://github.com/giacomodeliberali/typed-state-machine/blob/2b55a59/src/models/i-sync-state-machine.interface.ts#L18">models/i-sync-state-machine.interface.ts:18</a></li>
+									<li>Defined in <a href="https://github.com/giacomodeliberali/typed-state-machine/blob/827ac0d/src/models/i-sync-state-machine.interface.ts#L25">models/i-sync-state-machine.interface.ts:25</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -183,7 +219,7 @@
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in <a href="https://github.com/giacomodeliberali/typed-state-machine/blob/2b55a59/src/models/i-sync-state-machine.interface.ts#L34">models/i-sync-state-machine.interface.ts:34</a></li>
+									<li>Defined in <a href="https://github.com/giacomodeliberali/typed-state-machine/blob/827ac0d/src/models/i-sync-state-machine.interface.ts#L41">models/i-sync-state-machine.interface.ts:41</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -256,6 +292,9 @@
 						<ul>
 							<li class=" tsd-kind-method tsd-parent-kind-interface">
 								<a href="isyncstatemachine.html#goto" class="tsd-kind-icon">goto</a>
+							</li>
+							<li class=" tsd-kind-method tsd-parent-kind-interface">
+								<a href="isyncstatemachine.html#initialize" class="tsd-kind-icon">initialize</a>
 							</li>
 							<li class=" tsd-kind-method tsd-parent-kind-interface">
 								<a href="isyncstatemachine.html#transit" class="tsd-kind-icon">transit</a>

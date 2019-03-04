@@ -159,9 +159,9 @@
 									</li>
 								</ul>
 							</li>
-							<li><input disabled="" type="checkbox"> Refactor <code>HookFunction&lt;T&gt;</code>to something more significant</li>
-							<li><input disabled="" type="checkbox"> Consider remove <code>new Transition({})</code> in favour of <code>{}</code>like other options  </li>
-							<li><input disabled="" type="checkbox"> Add other utility methods:<pre><code class="language-typescript">  tsm.bindHook(StateType.A, <span class="hljs-function">(<span class="hljs-params">hookType: StateHookType</span>) =&gt;</span> {
+							<li><input checked="" disabled="" type="checkbox"> Refactor <code>HookFunction&lt;T&gt;</code>to something more significant</li>
+							<li><input disabled="" type="checkbox"> <del>Consider remove <code>new Transition({})</code> in favour of <code>{}</code>like other options</del></li>
+							<li><input checked="" disabled="" type="checkbox"> Add other utility methods:<pre><code class="language-typescript">  tsm.bindHook(StateType.A, <span class="hljs-function">(<span class="hljs-params">hookType: StateHookType</span>) =&gt;</span> {
       <span class="hljs-keyword">if</span>(hookType == StateHookType.OnBeforeLeave){
           <span class="hljs-comment">// ...</span>
       }

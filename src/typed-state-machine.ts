@@ -7,11 +7,14 @@ import { EventsBuilder } from "./helpers/events-builder.helper";
 import { IAsyncStateMachine } from "./models/i-async-state-machine.interface";
 import { HookHandler } from "./types/hook-handler.type";
 import { IImmutableStateMachine } from "./models/i-immutable-state-machine.interface";
+import { ISyncStateMachine } from "./models/i-sync-state-machine.interface";
 
 /**
  * A strongly typed state machine inspired by finite-state-machine
  */
-export class TypedStateMachine<T> implements IAsyncStateMachine<T>, IImmutableStateMachine<T>{
+export class TypedStateMachine<T> implements IAsyncStateMachine<T>, IImmutableStateMachine<T>, ISyncStateMachine<T>{
+
+    //#region Fields & Properties
 
     /**
      * The current internal state
@@ -64,6 +67,10 @@ export class TypedStateMachine<T> implements IAsyncStateMachine<T>, IImmutableSt
         Object.assign(this._config, config)
     }
 
+    //#endregion
+
+    //#region Constructor
+
     /**
      * Create a new TypedStateMachine
      * @param config The configuration such as transition functions and initial state
@@ -96,55 +103,9 @@ export class TypedStateMachine<T> implements IAsyncStateMachine<T>, IImmutableSt
         this._isInitialized = false;
     }
 
-    /**
-     * Initialize the machine with the initial state and invokes the registered hooks
-     */
-    public async initializeAsync(options?: TransitOptions): Promise<TypedStateMachine<T>> {
+    //#endregion
 
-        if (this._isInitialized)
-            throw new Error("The machine is already initialized and cannot be reinitialized twice.");
-
-        // ensure correct options
-        options = Object.assign({}, this._defaultTransitOptions, options || {});
-
-        EventsBuilder
-            .bind(this._config.onBeforeEveryTransition)
-            .toArgs(this)
-            .fireIf(options.fireEvents);
-
-        if (options.invokeHooks) {
-            const canProceed = await this.invokeHook(this._config.initialState, StateHookType.OnBeforeEnter);
-            if (!canProceed && !options.ignoreHooksResults)
-                throw new Error(`The hook ${StateHookType[StateHookType.OnBeforeEnter]} of state ${this._config.initialState} returned value "${canProceed}", that prevented the machine to be initialized properly. This value should be "true | Promise<true>"`);
-        }
-
-        // set initial state
-        this._state = this._config.initialState;
-
-        EventsBuilder
-            .bind(this._config.onStateEnter)
-            .toArgs(this, this._config.initialState)
-            .fireIf(options.fireEvents);
-
-
-        if (options.invokeHooks) {
-            const canProceed = await this.invokeHook(this._state, StateHookType.OnAfterEnter);
-            if (!canProceed && !options.ignoreHooksResults)
-                console.warn(`The hook ${StateHookType[StateHookType.OnAfterEnter]} of state ${this._state} returned => ${canProceed}`);
-        }
-
-        EventsBuilder
-            .bind(this._config.onAfterEveryTransition)
-            .toArgs(this)
-            .fireIf(options.fireEvents);
-
-        this._isTransitionPending = false;
-
-        // mark as initialized
-        this._isInitialized = true;
-
-        return this;
-    }
+    //#region Utility methods
 
     /**
      * Mark the _isTransitionPending to true
@@ -167,6 +128,79 @@ export class TypedStateMachine<T> implements IAsyncStateMachine<T>, IImmutableSt
         if (!this._isInitialized)
             throw new Error("The machine has not been initialized yet. After construction enure initialize() has been called before any other operation.");
     }
+
+    /**
+     * Return true if the transition to the target state is a self loop from the current state or not.
+     * @param newState The target state
+     */
+    public isSelfLoop(newState: T): boolean {
+        let transition = this.getTransition(newState);
+        return !transition && newState != null && newState != undefined && newState == this._state;
+    }
+
+    /**
+     * Execute the first hook that matches the target state and the hookType
+     * @param targetState The state of which you want to execute the hook
+     * @param hookType The hook type that you want to execute
+     */
+    private invokeHook(targetState: T, hookType: StateHookType) {
+
+        const stateHooks = this._config.hooks
+            .find(configuredHook => configuredHook.state == targetState);
+
+        if (stateHooks && stateHooks.handlers) {
+            const hookFunction = stateHooks.handlers.find(h => h.hookType == hookType);
+            if (hookFunction && typeof hookFunction.handler == "function")
+                return hookFunction.handler.call(undefined, this);
+        }
+
+        return true;
+    }
+
+    /**
+     * Return a transition from the current state to the newState, if it exists.
+     * 
+     * Return null if the transition does not exist
+     * 
+     * @param newState The new state
+     */
+    private getTransition(newState: T): Transition<T> {
+        let toRet: Transition<T> = null;
+        this._config.transitions.forEach(transition => {
+            if (Array.isArray(transition.from)) {
+                if (transition.from.find(s => s == this._state)) {
+                    if (Array.isArray(transition.to)) {
+                        // [A,B,C] -> [D,E,F]
+                        const tr = transition.to.find(s => s == newState);
+                        if (tr)
+                            toRet = toRet || transition;
+                    } else {
+                        // [A,B,C] -> D
+                        if (transition.to == newState)
+                            toRet = toRet || transition;
+                    }
+                }
+            } else {
+                if (transition.from == this._state) {
+                    if (Array.isArray(transition.to)) {
+                        // A -> [B,C,D]
+                        const tr = transition.to.find(s => s == newState)
+                        if (tr)
+                            toRet = toRet || transition;
+                    } else {
+                        // A -> B
+                        if (transition.to == newState)
+                            toRet = toRet || transition;
+                    }
+                }
+            }
+        });
+        return toRet;
+    }
+
+    //#endregion
+
+    //#region IImmutableStateMachine
 
     /**
      * Return the current internal state of the machine.
@@ -256,123 +290,117 @@ export class TypedStateMachine<T> implements IAsyncStateMachine<T>, IImmutableSt
     }
 
     /**
-     * Execute the first hook that matches the target state and the hookType
-     * @param targetState The state of which you want to execute the hook
-     * @param hookType The hook type that you want to execute
+     * If the transition from the current state is not possible return false, true otherwise. 
+     * @param newState The destination state
      */
-    private invokeHook(targetState: T, hookType: StateHookType) {
-
-        const stateHooks = this._config.hooks
-            .find(configuredHook => configuredHook.state == targetState);
-
-        if (stateHooks && stateHooks.handlers) {
-            const hookFunction = stateHooks.handlers.find(h => h.hookType == hookType);
-            if (hookFunction && typeof hookFunction.handler == "function")
-                return hookFunction.handler.call(undefined, this);
-        }
-
-        return true;
-    }
-
-    /**
-     * Make a transition from the current state to the first applicable state
-     * of the transition with the specified name.
-     * 
-     * If multiple transition have the same name, the first applicable state
-     * is is picked up traversing transitions in order of declaration.
-     * 
-     * If the transition has an array in "to" the first applicable state is is picked up.
-     * 
-     * @param transitionName The target transition name
-     */
-    public async transitByNameAsync(transitionName: string, options?: TransitOptions): Promise<boolean> {
+    public can(newState: T): boolean {
 
         this.throwIfNotInitialized();
 
-        const transitions = this._config.transitions.filter(t => t.name == transitionName);
+        if (this._config.canSelfLoop && newState == this.getState())
+            return true;
 
-        if (!transitions || transitions.length == 0)
-            throw new Error("The supplied transition name does not exist");
+        return !!this.getTransition(newState);
+    }
+
+
+    /**
+     * Add a new hook handler in the specified state and hook type.
+     * 
+     * If an hook already exist with the same combination of state and hookType it will be replaced.
+     * 
+     * @param applyToStates The state associated to this hook
+     * @param hookType The hook type
+     * @param handler The executed handler
+     */
+    public bindHookHandler(applyToStates: T | T[], hookType: StateHookType, handler: HookHandler<T>): void {
+
+        this._config.hooks = this._config.hooks || [];
+
+        const states = Array.isArray(applyToStates) ? applyToStates : [applyToStates];
+
+        states.forEach(state => {
+            const existState = this._config.hooks.find(h => h.state == state);
+            if (existState) {
+                existState.handlers = existState.handlers || [];
+                const existHook = existState.handlers.find(h => h.hookType == hookType);
+                if (existHook)
+                    existHook.handler = handler;
+                else
+                    existState.handlers.push({
+                        hookType: hookType,
+                        handler: handler
+                    });
+            } else {
+                this._config.hooks.push({
+                    state: state,
+                    handlers: [
+                        {
+                            hookType: hookType,
+                            handler: handler
+                        }
+                    ]
+                });
+            }
+        });
+
+    }
+
+    //#endregion
+
+    //#region IAsyncStateMachine
+
+    /**
+     * Initialize the machine with the initial state and invokes the registered hooks
+     */
+    public async initializeAsync(options?: TransitOptions): Promise<TypedStateMachine<T>> {
+
+        if (this._isInitialized)
+            throw new Error("The machine is already initialized and cannot be reinitialized twice.");
 
         // ensure correct options
         options = Object.assign({}, this._defaultTransitOptions, options || {});
 
-        let targetTransition: Transition<T> = transitions.find(t => {
-            if (Array.isArray(t.to)) {
-                return !!t.to.find(toState => this.can(toState));
-            } else {
-                return this.can(t.to)
-            }
-        });
+        EventsBuilder
+            .bind(this._config.onBeforeEveryTransition)
+            .toArgs(this)
+            .fireIf(options.fireEvents);
 
-        if (!targetTransition) {
-            EventsBuilder
-                .bind(this._config.onInvalidTransition)
-                .toArgs(this, this._state, undefined)
-                .fireIf(options.fireEvents);
-
-            return false;
+        if (options.invokeHooks) {
+            const canProceed = await this.invokeHook(this._config.initialState, StateHookType.OnBeforeEnter);
+            if (!canProceed && !options.ignoreHooksResults)
+                throw new Error(`The hook ${StateHookType[StateHookType.OnBeforeEnter]} of state ${this._config.initialState} returned value "${canProceed}", that prevented the machine to be initialized properly. This value should be "true | Promise<true>"`);
         }
 
-        let newState: T = null;
+        // set initial state
+        this._state = this._config.initialState;
 
-        if (Array.isArray(targetTransition.to)) {
-            newState = targetTransition.to.find(target => {
-                return this.can(target);
-            });
-        } else {
-            newState = targetTransition.to;
+        EventsBuilder
+            .bind(this._config.onStateEnter)
+            .toArgs(this, this._config.initialState)
+            .fireIf(options.fireEvents);
+
+
+        if (options.invokeHooks) {
+            const canProceed = await this.invokeHook(this._state, StateHookType.OnAfterEnter);
+            if (!canProceed && !options.ignoreHooksResults)
+                console.warn(`The hook ${StateHookType[StateHookType.OnAfterEnter]} of state ${this._state} returned => ${canProceed}`);
         }
 
-        return this._transitAsync(targetTransition, newState);
+        EventsBuilder
+            .bind(this._config.onAfterEveryTransition)
+            .toArgs(this)
+            .fireIf(options.fireEvents);
+
+        this._isTransitionPending = false;
+
+        // mark as initialized
+        this._isInitialized = true;
+
+        return this;
     }
 
-    /**
-     * Perform a transition from the current state to the given new state, if possible.
-     * If the transition is not possible return false, true if the transition succeeded.
-     * 
-     * Lifecycle events:
-     *  - onBeforeEveryTransition
-     *  - onBeforeTransition
-     *  - OnBeforeLeave [state]
-     *  - onStateLeave
-     *  - OnAfterLeave [state]
-     *  - OnBeforeEnter [state]
-     *  - onStateEnter
-     *  - OnAfterEnter [state]
-     *  - onAfterTransition
-     *  - onAfterEveryTransition
-     * 
-     * During this transition all life cycles events will be triggered.
-     * @param newState The destination state
-     */
-    public async transitAsync(newState: T): Promise<boolean> {
-
-        this.throwIfNotInitialized();
-
-        let transition = this.getTransition(newState);
-
-        if (!transition && this._config.canSelfLoop && this.isSelfLoop(newState)) {
-            // create a new runtime transition to emulate the self loop
-            transition = new Transition({
-                from: newState,
-                to: newState
-            })
-        }
-
-        return this._transitAsync(transition, newState);
-    }
-
-    /**
-     * Return true if the transition to the target state is a self loop from the current state or not.
-     * @param newState The target state
-     */
-    public isSelfLoop(newState: T): boolean {
-        let transition = this.getTransition(newState);
-        return !transition && newState != null && newState != undefined && newState == this._state;
-    }
-
-    /**
+   /**
      * Changes the state of the machine 
      * @param transition The transition that eventually contains the hooks to invoke
      * @param newState The new state to reach
@@ -487,59 +515,94 @@ export class TypedStateMachine<T> implements IAsyncStateMachine<T>, IImmutableSt
         return true;
     }
 
-    /**
-     * Return a transition from the current state to the newState, if it exists.
-     * 
-     * Return null if the transition does not exist
-     * 
-     * @param newState The new state
-     */
-    private getTransition(newState: T): Transition<T> {
-        let toRet: Transition<T> = null;
-        this._config.transitions.forEach(transition => {
-            if (Array.isArray(transition.from)) {
-                if (transition.from.find(s => s == this._state)) {
-                    if (Array.isArray(transition.to)) {
-                        // [A,B,C] -> [D,E,F]
-                        const tr = transition.to.find(s => s == newState);
-                        if (tr)
-                            toRet = toRet || transition;
-                    } else {
-                        // [A,B,C] -> D
-                        if (transition.to == newState)
-                            toRet = toRet || transition;
-                    }
-                }
-            } else {
-                if (transition.from == this._state) {
-                    if (Array.isArray(transition.to)) {
-                        // A -> [B,C,D]
-                        const tr = transition.to.find(s => s == newState)
-                        if (tr)
-                            toRet = toRet || transition;
-                    } else {
-                        // A -> B
-                        if (transition.to == newState)
-                            toRet = toRet || transition;
-                    }
-                }
-            }
-        });
-        return toRet;
-    }
 
     /**
-     * If the transition from the current state is not possible return false, true otherwise. 
-     * @param newState The destination state
+     * Make a transition from the current state to the first applicable state
+     * of the transition with the specified name.
+     * 
+     * If multiple transition have the same name, the first applicable state
+     * is is picked up traversing transitions in order of declaration.
+     * 
+     * If the transition has an array in "to" the first applicable state is is picked up.
+     * 
+     * @param transitionName The target transition name
      */
-    public can(newState: T): boolean {
+    public async transitByNameAsync(transitionName: string, options?: TransitOptions): Promise<boolean> {
 
         this.throwIfNotInitialized();
 
-        if (this._config.canSelfLoop && newState == this.getState())
-            return true;
+        const transitions = this._config.transitions.filter(t => t.name == transitionName);
 
-        return !!this.getTransition(newState);
+        if (!transitions || transitions.length == 0)
+            throw new Error("The supplied transition name does not exist");
+
+        // ensure correct options
+        options = Object.assign({}, this._defaultTransitOptions, options || {});
+
+        let targetTransition: Transition<T> = transitions.find(t => {
+            if (Array.isArray(t.to)) {
+                return !!t.to.find(toState => this.can(toState));
+            } else {
+                return this.can(t.to)
+            }
+        });
+
+        if (!targetTransition) {
+            EventsBuilder
+                .bind(this._config.onInvalidTransition)
+                .toArgs(this, this._state, undefined)
+                .fireIf(options.fireEvents);
+
+            return false;
+        }
+
+        let newState: T = null;
+
+        if (Array.isArray(targetTransition.to)) {
+            newState = targetTransition.to.find(target => {
+                return this.can(target);
+            });
+        } else {
+            newState = targetTransition.to;
+        }
+
+        return this._transitAsync(targetTransition, newState);
+    }
+
+    /**
+     * Perform a transition from the current state to the given new state, if possible.
+     * If the transition is not possible return false, true if the transition succeeded.
+     * 
+     * Lifecycle events:
+     *  - onBeforeEveryTransition
+     *  - onBeforeTransition
+     *  - OnBeforeLeave [state]
+     *  - onStateLeave
+     *  - OnAfterLeave [state]
+     *  - OnBeforeEnter [state]
+     *  - onStateEnter
+     *  - OnAfterEnter [state]
+     *  - onAfterTransition
+     *  - onAfterEveryTransition
+     * 
+     * During this transition all life cycles events will be triggered.
+     * @param newState The destination state
+     */
+    public async transitAsync(newState: T): Promise<boolean> {
+
+        this.throwIfNotInitialized();
+
+        let transition = this.getTransition(newState);
+
+        if (!transition && this._config.canSelfLoop && this.isSelfLoop(newState)) {
+            // create a new runtime transition to emulate the self loop
+            transition = new Transition({
+                from: newState,
+                to: newState
+            })
+        }
+
+        return this._transitAsync(transition, newState);
     }
 
     /**
@@ -569,45 +632,22 @@ export class TypedStateMachine<T> implements IAsyncStateMachine<T>, IImmutableSt
 
     }
 
-    /**
-     * Add a new hook handler in the specified state and hook type.
-     * 
-     * If an hook already exist with the same combination of state and hookType it will be replaced.
-     * 
-     * @param applyToStates The state associated to this hook
-     * @param hookType The hook type
-     * @param handler The executed handler
-     */
-    public bindHookHandler(applyToStates: T | T[], hookType: StateHookType, handler: HookHandler<T>): void {
+    //#endregion
 
-        this._config.hooks = this._config.hooks || [];
+    //#region ISyncStateMachine
 
-        const states = Array.isArray(applyToStates) ? applyToStates : [applyToStates];
-
-        states.forEach(state => {
-            const existState = this._config.hooks.find(h => h.state == state);
-            if (existState) {
-                existState.handlers = existState.handlers || [];
-                const existHook = existState.handlers.find(h => h.hookType == hookType);
-                if (existHook)
-                    existHook.handler = handler;
-                else
-                    existState.handlers.push({
-                        hookType: hookType,
-                        handler: handler
-                    });
-            } else {
-                this._config.hooks.push({
-                    state: state,
-                    handlers: [
-                        {
-                            hookType: hookType,
-                            handler: handler
-                        }
-                    ]
-                });
-            }
-        });
-
+    initialize(options?: TransitOptions): ISyncStateMachine<T> {
+        throw new Error("Method not implemented.");
     }
+    transit(targetState: T): boolean {
+        throw new Error("Method not implemented.");
+    }
+    transitByName(transitionName: string): boolean {
+        throw new Error("Method not implemented.");
+    }
+    goto(newState: T): boolean {
+        throw new Error("Method not implemented.");
+    }
+
+    //#endregion
 }

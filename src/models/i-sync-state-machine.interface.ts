@@ -1,11 +1,18 @@
 import { StateInfo } from "./state-info.model";
 import { StateHookType } from "../enums/state-lifecycle-hook-type.enum";
 import { HookHandler } from "../types/hook-handler.type";
+import { TransitOptions } from "./transit-options.interface";
 
 /**
  * The public APIs of the ISyncStateMachine
  */
 export interface ISyncStateMachine<T> {
+
+    /**
+     * Initialize the machine and transit to the initial state 
+     * invoking all registered hooks handlers
+     */
+    initialize(options?: TransitOptions): ISyncStateMachine<T>;
 
     /**
      * Performs a sync transition from the current state to the target state.
