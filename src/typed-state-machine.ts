@@ -1,16 +1,15 @@
 import { Transition } from "./models/transition.model";
 import { StateHookType } from "./enums/state-lifecycle-hook-type.enum";
-import { StateHookBinding } from "./models/state-hook-binding.model";
 import { StateInfo } from "./models/state-info.model";
 import { TypedStateMachineConfig } from "./models/typed-state-machine-config.interface";
 import { TransitOptions } from "./models/transit-options.interface";
 import { EventsBuilder } from "./helpers/events-builder.helper";
-import { HookHandler } from "./types/hook-handler.type";
+import { IAsyncStateMachine } from "./models/i-async-state-machine.interface";
 
 /**
  * A strongly typed state machine inspired by finite-state-machine
  */
-export class TypedStateMachine<T> {
+export class TypedStateMachine<T> implements IAsyncStateMachine<T>{
 
     /**
      * The current internal state
