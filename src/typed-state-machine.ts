@@ -5,11 +5,13 @@ import { TypedStateMachineConfig } from "./models/typed-state-machine-config.int
 import { TransitOptions } from "./models/transit-options.interface";
 import { EventsBuilder } from "./helpers/events-builder.helper";
 import { IAsyncStateMachine } from "./models/i-async-state-machine.interface";
+import { HookHandler } from "./types/hook-handler.type";
+import { IImmutableStateMachine } from "./models/i-immutable-state-machine.interface";
 
 /**
  * A strongly typed state machine inspired by finite-state-machine
  */
-export class TypedStateMachine<T> implements IAsyncStateMachine<T>{
+export class TypedStateMachine<T> implements IAsyncStateMachine<T>, IImmutableStateMachine<T>{
 
     /**
      * The current internal state
@@ -496,7 +498,7 @@ export class TypedStateMachine<T> implements IAsyncStateMachine<T>{
         let toRet: Transition<T> = null;
         this._config.transitions.forEach(transition => {
             if (Array.isArray(transition.from)) {
-                if (transition.from.find(s => s == this.getState())) {
+                if (transition.from.find(s => s == this._state)) {
                     if (Array.isArray(transition.to)) {
                         // [A,B,C] -> [D,E,F]
                         const tr = transition.to.find(s => s == newState);
@@ -509,7 +511,7 @@ export class TypedStateMachine<T> implements IAsyncStateMachine<T>{
                     }
                 }
             } else {
-                if (transition.from == this.getState()) {
+                if (transition.from == this._state) {
                     if (Array.isArray(transition.to)) {
                         // A -> [B,C,D]
                         const tr = transition.to.find(s => s == newState)
@@ -567,36 +569,45 @@ export class TypedStateMachine<T> implements IAsyncStateMachine<T>{
 
     }
 
-    /*     public bindHook(applyTo: T | T[], hookType: StateHookType, handler: HookHandler<T>): void {
-    
-            this._config.hooks = this._config.hooks || [];
-    
-            const states = Array.isArray(applyTo) ? applyTo : [applyTo];
-    
-            states.forEach(state => {
-                const existState = this._config.hooks.find(h => h.state == state);
-                if (existState) {
-                    existState.handlers = existState.handlers || [];
-                    const existHook = existState.handlers.find(h => h.hookType == hookType);
-                    if (existHook)
-                        existHook.handler = handler;
-                    else
-                        existState.handlers.push({
+    /**
+     * Add a new hook handler in the specified state and hook type.
+     * 
+     * If an hook already exist with the same combination of state and hookType it will be replaced.
+     * 
+     * @param applyToStates The state associated to this hook
+     * @param hookType The hook type
+     * @param handler The executed handler
+     */
+    public bindHookHandler(applyToStates: T | T[], hookType: StateHookType, handler: HookHandler<T>): void {
+
+        this._config.hooks = this._config.hooks || [];
+
+        const states = Array.isArray(applyToStates) ? applyToStates : [applyToStates];
+
+        states.forEach(state => {
+            const existState = this._config.hooks.find(h => h.state == state);
+            if (existState) {
+                existState.handlers = existState.handlers || [];
+                const existHook = existState.handlers.find(h => h.hookType == hookType);
+                if (existHook)
+                    existHook.handler = handler;
+                else
+                    existState.handlers.push({
+                        hookType: hookType,
+                        handler: handler
+                    });
+            } else {
+                this._config.hooks.push({
+                    state: state,
+                    handlers: [
+                        {
                             hookType: hookType,
                             handler: handler
-                        });
-                } else {
-                    this._config.hooks.push({
-                        state: state,
-                        handlers: [
-                            {
-                                hookType: hookType,
-                                handler: handler
-                            }
-                        ]
-                    });
-                }
-            });
-    
-        } */
+                        }
+                    ]
+                });
+            }
+        });
+
+    }
 }

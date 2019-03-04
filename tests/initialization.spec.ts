@@ -169,7 +169,7 @@ describe("TypedStateMachine initialization", () => {
         }).initializeAsync();
 
         const transition = lTsm.transitAsync(LiteralEnum.B);
-        expect(() => lTsm.getState()).toThrowError();
+        expect(() => lTsm.getState()).toThrowError(/pending/);
         expect(lTsm.isPending()).toBe(true);
 
         expect(lTsm.transitAsync(LiteralEnum.C)).rejects.toThrowError(/pending/)
